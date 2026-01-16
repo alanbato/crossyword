@@ -60,7 +60,11 @@ class GameState:
 
     def get_clue(self, direction: str, num: int) -> dict | None:
         """Get clue info by direction and number."""
-        clues = self.numbering.across if direction.lower() == "across" else self.numbering.down
+        clues = (
+            self.numbering.across
+            if direction.lower() == "across"
+            else self.numbering.down
+        )
         for clue in clues:
             if clue["num"] == num:
                 return clue
@@ -68,7 +72,11 @@ class GameState:
 
     def get_clue_text(self, direction: str, num: int) -> str | None:
         """Get the clue text for a specific clue."""
-        clues = self.numbering.across if direction.lower() == "across" else self.numbering.down
+        clues = (
+            self.numbering.across
+            if direction.lower() == "across"
+            else self.numbering.down
+        )
         clue_texts = (
             self.puz_data.clues[: len(self.numbering.across)]
             if direction.lower() == "across"
@@ -84,7 +92,7 @@ class GameState:
         """
         Submit an answer for a clue.
 
-        Returns (is_correct, message) tuple.
+        Returns (success, message) tuple. Does not reveal if answer is correct.
         """
         clue = self.get_clue(direction, num)
         if not clue:
@@ -98,14 +106,6 @@ class GameState:
 
         cell = clue["cell"]
         width = self.puz_data.width
-        correct_answer = ""
-
-        for i in range(expected_length):
-            if direction.lower() == "across":
-                idx = cell + i
-            else:
-                idx = cell + (i * width)
-            correct_answer += self.puz_data.solution[idx]
 
         for i, char in enumerate(answer):
             if direction.lower() == "across":
@@ -116,17 +116,11 @@ class GameState:
             if self.current_fill[idx] != ".":
                 self.current_fill[idx] = char
 
+        # Track that this clue has been answered (not necessarily correct)
         clue_id = f"{num}{direction[0].upper()}"
-        is_correct = answer == correct_answer
+        self.solved_clues.add(clue_id)
 
-        if is_correct:
-            self.solved_clues.add(clue_id)
-            message = "Correct!"
-        else:
-            self.solved_clues.discard(clue_id)
-            message = "Answer saved"
-
-        return is_correct, message
+        return True, "Answer saved"
 
     def clear_answer(self, direction: str, num: int) -> bool:
         """Clear the answer for a specific clue."""
@@ -154,6 +148,43 @@ class GameState:
     def is_complete(self) -> bool:
         """Check if the puzzle is fully and correctly solved."""
         return "".join(self.current_fill) == self.puz_data.solution
+
+    def is_filled(self) -> bool:
+        """Check if all cells have been filled (no empty spaces)."""
+        for char in self.current_fill:
+            if char == " ":
+                return False
+        return True
+
+    def count_incorrect_clues(self) -> int:
+        """Count the number of clues with incorrect answers."""
+        incorrect = 0
+
+        for clue in self.numbering.across:
+            if not self._is_clue_correct(clue, "across"):
+                incorrect += 1
+
+        for clue in self.numbering.down:
+            if not self._is_clue_correct(clue, "down"):
+                incorrect += 1
+
+        return incorrect
+
+    def _is_clue_correct(self, clue: dict, direction: str) -> bool:
+        """Check if a specific clue's answer is correct."""
+        cell = clue["cell"]
+        width = self.puz_data.width
+
+        for i in range(clue["len"]):
+            if direction.lower() == "across":
+                idx = cell + i
+            else:
+                idx = cell + (i * width)
+
+            if self.current_fill[idx] != self.puz_data.solution[idx]:
+                return False
+
+        return True
 
     def get_completion_percentage(self) -> float:
         """Calculate percentage of correctly filled cells."""

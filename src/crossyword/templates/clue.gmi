@@ -9,7 +9,7 @@ Length: {{ length }} letters
 ```
 
 {% if is_solved %}
-Status: Solved!
+=> /puzzle/answer/{{ direction }}/{{ num }} Change Answer
 {% else %}
 => /puzzle/answer/{{ direction }}/{{ num }} Enter Answer
 {% endif %}

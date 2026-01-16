@@ -1,13 +1,11 @@
 # Answer Submitted
 
 Your answer: {{ answer }}
-Result: {{ message }}
-
-{% if is_complete %}
-PUZZLE COMPLETE! Congratulations!
-
-=> /leaderboard View Leaderboard
+{% if success %}
+{{ message }}
 {% else %}
-=> /puzzle/clue/{{ direction }}/{{ num }} Back to Clue
+Error: {{ message }}
 {% endif %}
+
+=> /puzzle/clue/{{ direction }}/{{ num }} Back to Clue
 => /puzzle Back to Puzzle

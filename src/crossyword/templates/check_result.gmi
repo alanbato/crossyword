@@ -1,0 +1,14 @@
+# Check Solution
+
+{% if not is_filled %}
+Please fill in all cells before checking your solution.
+
+{% elif is_complete %}
+Congratulations! You've completed the puzzle!
+
+=> /leaderboard View Leaderboard
+{% else %}
+You have {{ incorrect_message }} incorrect clue{% if incorrect_count != 1 %}s{% endif %}.
+
+{% endif %}
+=> /puzzle Back to Puzzle

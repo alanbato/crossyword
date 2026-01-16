@@ -19,6 +19,9 @@ Most Gemini clients can generate one for you.
 
 => /leaderboard Today's Leaderboard
 => /help How to Play
+{% if user %}
+=> /profile Your Profile
+{% endif %}
 
 ---
 A Xitzin-powered Gemini capsule

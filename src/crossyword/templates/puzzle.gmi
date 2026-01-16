@@ -8,14 +8,10 @@ by {{ puzzle.author }}
 {{ grid }}
 ```
 
-Progress: {{ progress }}% correct
+Progress: {{ progress }}% filled
 
-{% if is_complete %}
-Congratulations! You've completed this puzzle!
+=> /puzzle/check Check Solution
 
-=> /leaderboard View Leaderboard
-
-{% endif %}
 ## Across
 
 {% for clue in across_clues %}

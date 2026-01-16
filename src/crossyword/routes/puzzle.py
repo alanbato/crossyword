@@ -1,7 +1,7 @@
 """Puzzle gameplay routes."""
 
 from sqlmodel import Session
-from xitzin import Request, Xitzin
+from xitzin import Redirect, Request, Xitzin
 from xitzin.auth import get_identity, require_certificate
 
 from ..daily import get_or_assign_todays_puzzle
@@ -39,6 +39,45 @@ def register_routes(app: Xitzin) -> None:
             )
         return None
 
+    def render_puzzle_page(game: GameState):
+        """Render the main puzzle page."""
+        grid = render_grid(game.puz_data, "".join(game.current_fill))
+        across_texts = game.puz_data.clues[: len(game.numbering.across)]
+        down_texts = game.puz_data.clues[len(game.numbering.across) :]
+
+        across_clues = []
+        for i, clue in enumerate(game.numbering.across):
+            num = clue["num"]
+            clue_id = f"{num}A"
+            across_clues.append(
+                {
+                    "num": num,
+                    "text": across_texts[i] if i < len(across_texts) else "?",
+                    "status": "[x]" if clue_id in game.solved_clues else "[ ]",
+                }
+            )
+
+        down_clues = []
+        for i, clue in enumerate(game.numbering.down):
+            num = clue["num"]
+            clue_id = f"{num}D"
+            down_clues.append(
+                {
+                    "num": num,
+                    "text": down_texts[i] if i < len(down_texts) else "?",
+                    "status": "[x]" if clue_id in game.solved_clues else "[ ]",
+                }
+            )
+
+        return app.template(
+            "puzzle.gmi",
+            puzzle=game.puzzle,
+            grid=grid,
+            progress=int(game.get_fill_percentage()),
+            across_clues=across_clues,
+            down_clues=down_clues,
+        )
+
     @app.gemini("/puzzle")
     @require_certificate
     def puzzle_home(request: Request):
@@ -49,46 +88,7 @@ def register_routes(app: Xitzin) -> None:
                 return error
 
             game.save()
-
-            grid = render_grid(game.puz_data, "".join(game.current_fill))
-
-            # Build clue data for templates
-            across_texts = game.puz_data.clues[: len(game.numbering.across)]
-            down_texts = game.puz_data.clues[len(game.numbering.across) :]
-
-            across_clues = []
-            for i, clue in enumerate(game.numbering.across):
-                num = clue["num"]
-                clue_id = f"{num}A"
-                across_clues.append(
-                    {
-                        "num": num,
-                        "text": across_texts[i] if i < len(across_texts) else "?",
-                        "status": "[x]" if clue_id in game.solved_clues else "[ ]",
-                    }
-                )
-
-            down_clues = []
-            for i, clue in enumerate(game.numbering.down):
-                num = clue["num"]
-                clue_id = f"{num}D"
-                down_clues.append(
-                    {
-                        "num": num,
-                        "text": down_texts[i] if i < len(down_texts) else "?",
-                        "status": "[x]" if clue_id in game.solved_clues else "[ ]",
-                    }
-                )
-
-            return app.template(
-                "puzzle.gmi",
-                puzzle=game.puzzle,
-                grid=grid,
-                progress=int(game.get_completion_percentage()),
-                is_complete=game.is_complete(),
-                across_clues=across_clues,
-                down_clues=down_clues,
-            )
+            return render_puzzle_page(game)
 
     @app.gemini("/puzzle/clue/{direction}/{num}")
     @require_certificate
@@ -145,16 +145,84 @@ def register_routes(app: Xitzin) -> None:
             if error:
                 return error
 
-            is_correct, message = game.submit_answer(direction, num, query)
+            success, message = game.submit_answer(direction, num, query)
+
+            if not success:
+                return app.template(
+                    "error.gmi",
+                    title="Invalid Answer",
+                    message=f"{message}\n\n=> /puzzle/clue/{direction}/{num} Back to Clue",
+                )
+
             game.save()
 
+            # Auto-check when puzzle becomes fully filled
+            if game.is_filled():
+                if game.is_complete():
+                    return app.template(
+                        "check_result.gmi",
+                        is_filled=True,
+                        is_complete=True,
+                        incorrect_count=0,
+                        incorrect_message="",
+                    )
+
+                incorrect = game.count_incorrect_clues()
+                if incorrect > 3:
+                    incorrect_message = "some"
+                else:
+                    incorrect_message = str(incorrect)
+
+                return app.template(
+                    "check_result.gmi",
+                    is_filled=True,
+                    is_complete=False,
+                    incorrect_count=incorrect,
+                    incorrect_message=incorrect_message,
+                )
+
+            return Redirect("/puzzle")
+
+    @app.gemini("/puzzle/check")
+    @require_certificate
+    def check_puzzle(request: Request):
+        """Check the puzzle solution."""
+        with Session(request.app.state.engine) as session:
+            game, error = get_game_or_error(session, request)
+            if error:
+                return error
+
+            if not game.is_filled():
+                return app.template(
+                    "check_result.gmi",
+                    is_filled=False,
+                    is_complete=False,
+                    incorrect_count=0,
+                    incorrect_message="",
+                )
+
+            if game.is_complete():
+                game.save()  # Record completion
+                return app.template(
+                    "check_result.gmi",
+                    is_filled=True,
+                    is_complete=True,
+                    incorrect_count=0,
+                    incorrect_message="",
+                )
+
+            incorrect = game.count_incorrect_clues()
+            if incorrect > 3:
+                incorrect_message = "some"
+            else:
+                incorrect_message = str(incorrect)
+
             return app.template(
-                "answer_result.gmi",
-                answer=query.upper(),
-                message=message,
-                is_complete=game.is_complete(),
-                direction=direction,
-                num=num,
+                "check_result.gmi",
+                is_filled=True,
+                is_complete=False,
+                incorrect_count=incorrect,
+                incorrect_message=incorrect_message,
             )
 
     @app.gemini("/puzzle/clear/{direction}/{num}")
