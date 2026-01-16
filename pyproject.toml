@@ -1,0 +1,20 @@
+[project]
+name = "crossyword"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Alan Velasco", email = "alanvelasco.a@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "xitzin[sqlmodel]>=0.3.0",
+    "puzpy>=0.3.0",
+]
+
+[project.scripts]
+crossyword = "crossyword:main"
+
+[build-system]
+requires = ["uv_build>=0.9.10,<0.10.0"]
+build-backend = "uv_build"
