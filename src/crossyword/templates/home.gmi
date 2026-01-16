@@ -1,0 +1,24 @@
+# Crossyword
+
+Welcome to Crossyword - Daily crossword puzzles over Gemini!
+
+{% if user %}
+Hello, {{ display_name }}!
+
+{% if puzzle %}
+=> /puzzle Play Today's Puzzle: {{ puzzle.title }}
+{% else %}
+No puzzle available today. Check back soon!
+{% endif %}
+{% else %}
+To play, you'll need a client certificate for identification.
+Most Gemini clients can generate one for you.
+
+=> /puzzle Play Today's Puzzle
+{% endif %}
+
+=> /leaderboard Today's Leaderboard
+=> /help How to Play
+
+---
+A Xitzin-powered Gemini capsule

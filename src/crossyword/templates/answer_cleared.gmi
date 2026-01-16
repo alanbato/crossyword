@@ -1,0 +1,6 @@
+# Answer Cleared
+
+The answer for {{ num }} {{ direction | title }} has been cleared.
+
+=> /puzzle/clue/{{ direction }}/{{ num }} Back to Clue
+=> /puzzle Back to Puzzle

@@ -1,0 +1,16 @@
+# {{ title }}
+
+Puzzle: {{ puzzle.title }}
+
+{% if entries %}
+{{ entries | length }} completion(s)
+
+{% for entry in entries %}
+{{ loop.index }}. {{ entry.name }} - {{ entry.time }}
+{% endfor %}
+{% else %}
+No completions yet. Be the first!
+{% endif %}
+
+=> /puzzle Play Today's Puzzle
+=> / Home

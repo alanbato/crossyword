@@ -1,0 +1,18 @@
+# {{ num }} {{ direction | title }}
+
+{{ clue_text }}
+
+Length: {{ length }} letters
+
+```
+{{ context }}
+```
+
+{% if is_solved %}
+Status: Solved!
+{% else %}
+=> /puzzle/answer/{{ direction }}/{{ num }} Enter Answer
+{% endif %}
+=> /puzzle/clear/{{ direction }}/{{ num }} Clear Answer
+
+=> /puzzle Back to Puzzle

@@ -20,7 +20,12 @@ def register_routes(app: Xitzin) -> None:
             puzzle = get_todays_puzzle(session)
 
             if not puzzle:
-                return "# Leaderboard\n\nNo puzzle assigned for today yet.\n\n=> / Home"
+                return app.template(
+                    "leaderboard.gmi",
+                    title="Leaderboard",
+                    puzzle={"title": "No puzzle assigned yet"},
+                    entries=[],
+                )
 
             statement = (
                 select(CompletedPuzzle, User)
@@ -30,33 +35,20 @@ def register_routes(app: Xitzin) -> None:
             )
             results = session.exec(statement).all()
 
-            lines = [
-                "# Today's Leaderboard",
-                "",
-                f"Puzzle: {puzzle.title}",
-                "",
+            entries = [
+                {
+                    "name": user.display_name or user.fingerprint[:8],
+                    "time": format_time(completed.completion_time_seconds),
+                }
+                for completed, user in results
             ]
 
-            if not results:
-                lines.append("No completions yet. Be the first!")
-            else:
-                lines.append(f"{len(results)} completion(s)")
-                lines.append("")
-
-                for i, (completed, user) in enumerate(results, 1):
-                    name = user.display_name or user.fingerprint[:8]
-                    time_str = format_time(completed.completion_time_seconds)
-                    lines.append(f"{i}. {name} - {time_str}")
-
-            lines.extend(
-                [
-                    "",
-                    "=> /puzzle Play Today's Puzzle",
-                    "=> / Home",
-                ]
+            return app.template(
+                "leaderboard.gmi",
+                title="Today's Leaderboard",
+                puzzle=puzzle,
+                entries=entries,
             )
-
-            return "\n".join(lines)
 
     @app.gemini("/leaderboard/{date_str}")
     def historical_leaderboard(request: Request, date_str: str):
@@ -64,13 +56,24 @@ def register_routes(app: Xitzin) -> None:
         try:
             target_date = dt.datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
-            return "# Invalid Date\n\nUse format: YYYY-MM-DD\n\n=> /leaderboard Today's Leaderboard"
+            return app.template(
+                "error.gmi",
+                title="Invalid Date",
+                message="Use format: YYYY-MM-DD\n\n=> /leaderboard Today's Leaderboard",
+            )
 
         with Session(request.app.state.engine) as session:
-            daily = session.exec(select(DailyPuzzle).where(DailyPuzzle.date == target_date)).first()
+            daily = session.exec(
+                select(DailyPuzzle).where(DailyPuzzle.date == target_date)
+            ).first()
 
             if not daily:
-                return f"# No Puzzle for {date_str}\n\nNo puzzle was assigned for this date.\n\n=> /leaderboard Today's Leaderboard"
+                return app.template(
+                    "leaderboard.gmi",
+                    title=f"Leaderboard for {date_str}",
+                    puzzle={"title": "No puzzle assigned"},
+                    entries=[],
+                )
 
             puzzle = daily.puzzle
 
@@ -82,33 +85,17 @@ def register_routes(app: Xitzin) -> None:
             )
             results = session.exec(statement).all()
 
-            lines = [
-                f"# Leaderboard for {date_str}",
-                "",
-                f"Puzzle: {puzzle.title}",
-                "",
+            entries = [
+                {
+                    "name": user.display_name or user.fingerprint[:8],
+                    "time": format_time(completed.completion_time_seconds),
+                }
+                for completed, user in results
             ]
 
-            if not results:
-                lines.append("No completions recorded.")
-            else:
-                lines.append(f"{len(results)} completion(s)")
-                lines.append("")
-
-                for i, (completed, user) in enumerate(results, 1):
-                    name = user.display_name or user.fingerprint[:8]
-                    time_str = format_time(completed.completion_time_seconds)
-                    lines.append(f"{i}. {name} - {time_str}")
-
-            today = dt.date.today()
-            yesterday = today.replace(day=today.day - 1) if today.day > 1 else today
-
-            lines.extend(
-                [
-                    "",
-                    "=> /leaderboard Today's Leaderboard",
-                    "=> / Home",
-                ]
+            return app.template(
+                "leaderboard.gmi",
+                title=f"Leaderboard for {date_str}",
+                puzzle=puzzle,
+                entries=entries,
             )
-
-            return "\n".join(lines)

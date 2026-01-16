@@ -1,0 +1,30 @@
+# Your Profile
+
+Certificate ID: {{ short_id }}
+{% if display_name %}
+Display Name: {{ display_name }}
+{% else %}
+=> /profile/name Set Display Name
+{% endif %}
+
+## Statistics
+
+Puzzles Completed: {{ completed_count }}
+Puzzles In Progress: {{ in_progress_count }}
+{% if best_time %}
+Best Time: {{ best_time }}
+{% endif %}
+{% if avg_time %}
+Average Time: {{ avg_time }}
+{% endif %}
+
+{% if recent %}
+## Recent Completions
+
+{% for entry in recent %}
+* {{ entry.date }} - {{ entry.time }}
+{% endfor %}
+{% endif %}
+
+=> /puzzle Today's Puzzle
+=> / Home

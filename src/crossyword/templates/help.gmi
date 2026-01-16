@@ -1,0 +1,28 @@
+# How to Play Crossyword
+
+## Getting Started
+
+1. Make sure your Gemini client has a client certificate enabled
+2. Visit the puzzle page to see today's crossword
+3. Select a clue (Across or Down) to view it
+4. Enter your answer for that clue
+
+## Entering Answers
+
+* Answers are entered word-by-word
+* Use SPACE to leave a cell empty if you're unsure
+* Your progress is saved automatically
+
+## Scoring
+
+* Complete the puzzle to appear on the leaderboard
+* Times are measured from when you first view the puzzle
+* Faster times rank higher!
+
+## Tips
+
+* Start with clues you're confident about
+* Crossing words can help confirm your answers
+* The grid shows which cells are filled
+
+=> / Back to Home

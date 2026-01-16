@@ -13,9 +13,12 @@ def create_app(config: Config | None = None) -> Xitzin:
     """Create and configure the Xitzin application."""
     config = config or Config.from_env()
 
+    templates_dir = Path(__file__).parent / "templates"
+
     app = Xitzin(
         title="Crossyword",
         version="0.1.0",
+        templates_dir=templates_dir,
     )
 
     engine = create_engine(config.database_url)

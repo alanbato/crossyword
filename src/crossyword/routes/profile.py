@@ -22,11 +22,15 @@ def register_routes(app: Xitzin) -> None:
             user = get_or_create_user(session, identity.fingerprint)
 
             completed_count = session.exec(
-                select(func.count(CompletedPuzzle.id)).where(CompletedPuzzle.user_id == user.id)
+                select(func.count(CompletedPuzzle.id)).where(
+                    CompletedPuzzle.user_id == user.id
+                )
             ).one()
 
             in_progress_count = session.exec(
-                select(func.count(PlayerProgress.id)).where(PlayerProgress.user_id == user.id)
+                select(func.count(PlayerProgress.id)).where(
+                    PlayerProgress.user_id == user.id
+                )
             ).one()
 
             best_time = session.exec(
@@ -41,62 +45,31 @@ def register_routes(app: Xitzin) -> None:
                 )
             ).one()
 
-            lines = [
-                "# Your Profile",
-                "",
-                f"Certificate ID: {identity.short_id}",
-            ]
-
-            if user.display_name:
-                lines.append(f"Display Name: {user.display_name}")
-            else:
-                lines.append("=> /profile/name Set Display Name")
-
-            lines.extend(
-                [
-                    "",
-                    "## Statistics",
-                    "",
-                    f"Puzzles Completed: {completed_count}",
-                    f"Puzzles In Progress: {in_progress_count}",
-                ]
-            )
-
-            if best_time:
-                lines.append(f"Best Time: {format_time(int(best_time))}")
-
-            if avg_time:
-                lines.append(f"Average Time: {format_time(int(avg_time))}")
-
-            recent = session.exec(
+            recent_completions = session.exec(
                 select(CompletedPuzzle)
                 .where(CompletedPuzzle.user_id == user.id)
                 .order_by(CompletedPuzzle.completed_at.desc())
                 .limit(5)
             ).all()
 
-            if recent:
-                lines.extend(
-                    [
-                        "",
-                        "## Recent Completions",
-                        "",
-                    ]
-                )
-                for completed in recent:
-                    date_str = completed.completed_at.strftime("%Y-%m-%d")
-                    time_str = format_time(completed.completion_time_seconds)
-                    lines.append(f"* {date_str} - {time_str}")
+            recent = [
+                {
+                    "date": c.completed_at.strftime("%Y-%m-%d"),
+                    "time": format_time(c.completion_time_seconds),
+                }
+                for c in recent_completions
+            ]
 
-            lines.extend(
-                [
-                    "",
-                    "=> /puzzle Today's Puzzle",
-                    "=> / Home",
-                ]
+            return app.template(
+                "profile.gmi",
+                short_id=identity.short_id,
+                display_name=user.display_name,
+                completed_count=completed_count,
+                in_progress_count=in_progress_count,
+                best_time=format_time(int(best_time)) if best_time else None,
+                avg_time=format_time(int(avg_time)) if avg_time else None,
+                recent=recent,
             )
-
-            return "\n".join(lines)
 
     @app.input("/profile/name", prompt="Enter your display name:")
     @require_certificate
@@ -105,20 +78,22 @@ def register_routes(app: Xitzin) -> None:
         identity = get_identity(request)
 
         if len(query) > 20:
-            return "# Name Too Long\n\nDisplay name must be 20 characters or less.\n\n=> /profile/name Try Again"
+            return app.template(
+                "error.gmi",
+                title="Name Too Long",
+                message="Display name must be 20 characters or less.\n\n=> /profile/name Try Again",
+            )
 
         if len(query) < 1:
-            return "# Name Too Short\n\nPlease enter a name.\n\n=> /profile/name Try Again"
+            return app.template(
+                "error.gmi",
+                title="Name Too Short",
+                message="Please enter a name.\n\n=> /profile/name Try Again",
+            )
 
         with Session(request.app.state.engine) as session:
             user = get_or_create_user(session, identity.fingerprint)
             user.display_name = query.strip()
             session.commit()
 
-            return f"""# Name Updated
-
-Your display name is now: {user.display_name}
-
-=> /profile Back to Profile
-=> / Home
-"""
+            return app.template("name_updated.gmi", display_name=user.display_name)

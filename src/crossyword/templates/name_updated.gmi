@@ -1,0 +1,6 @@
+# Name Updated
+
+Your display name is now: {{ display_name }}
+
+=> /profile Back to Profile
+=> / Home
