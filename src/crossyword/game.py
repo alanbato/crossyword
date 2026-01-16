@@ -175,6 +175,22 @@ class GameState:
 
         return True
 
+    def is_clue_filled(self, clue: dict, direction: str) -> bool:
+        """Check if all cells for a clue are filled (no empty spaces)."""
+        cell = clue["cell"]
+        width = self.puz_data.width
+
+        for i in range(clue["len"]):
+            if direction.lower() == "across":
+                idx = cell + i
+            else:
+                idx = cell + (i * width)
+
+            if self.current_fill[idx] == " ":
+                return False
+
+        return True
+
     def get_completion_percentage(self) -> float:
         """Calculate percentage of correctly filled cells."""
         correct = 0

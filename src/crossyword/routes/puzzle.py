@@ -46,24 +46,24 @@ def register_routes(app: Xitzin) -> None:
         across_clues = []
         for clue in game.numbering.across:
             num = clue["num"]
-            clue_id = f"{num}A"
+            filled = game.is_clue_filled(clue, "across")
             across_clues.append(
                 {
                     "num": num,
                     "text": clue.get("clue", "?"),
-                    "status": "[x]" if clue_id in game.solved_clues else "[ ]",
+                    "status": "✓" if filled else "○",
                 }
             )
 
         down_clues = []
         for clue in game.numbering.down:
             num = clue["num"]
-            clue_id = f"{num}D"
+            filled = game.is_clue_filled(clue, "down")
             down_clues.append(
                 {
                     "num": num,
                     "text": clue.get("clue", "?"),
-                    "status": "[x]" if clue_id in game.solved_clues else "[ ]",
+                    "status": "✓" if filled else "○",
                 }
             )
 
@@ -109,7 +109,6 @@ def register_routes(app: Xitzin) -> None:
                 )
 
             clue_text = game.get_clue_text(direction, num)
-            clue_id = f"{num}{direction[0].upper()}"
 
             context = render_clue_context(
                 game.puz_data,
@@ -125,7 +124,7 @@ def register_routes(app: Xitzin) -> None:
                 clue_text=clue_text or "No clue text available",
                 length=clue_info["len"],
                 context=context,
-                is_solved=clue_id in game.solved_clues,
+                is_solved=game.is_clue_filled(clue_info, direction),
             )
 
     @app.input(
