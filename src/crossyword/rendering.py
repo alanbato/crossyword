@@ -2,16 +2,23 @@
 
 import puz
 
+SUPERSCRIPT_DIGITS = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
+def to_superscript(num: int | str) -> str:
+    """Convert a number to Unicode superscript characters."""
+    return str(num).translate(SUPERSCRIPT_DIGITS)
+
 
 def render_grid(puzzle: puz.Puzzle, current_fill: str) -> str:
     """
-    Render crossword grid as ASCII art with cell numbers.
+    Render crossword grid as ASCII art with superscript cell numbers.
 
     Format:
     +----+----+----+----+----+
-    |1 H |2 E |3 L |  L |4 O |
+    |¹H  |²E  |³L  | L  |⁴O  |
     +----+----+----+----+----+
-    |5   |####|####|####|6   |
+    |⁵   |####|####|####|⁶   |
     +----+----+----+----+----+
     """
     width = puzzle.width
@@ -43,9 +50,10 @@ def render_grid(puzzle: puz.Puzzle, current_fill: str) -> str:
                 letter = cell if cell not in ["-", " "] else " "
 
                 if num:
-                    cell_str = f"{num:<2}{letter} "[:cell_width]
+                    sup = to_superscript(num)
+                    cell_str = f"{sup}{letter}".ljust(cell_width)[:cell_width]
                 else:
-                    cell_str = f"  {letter} "[:cell_width]
+                    cell_str = f" {letter}".ljust(cell_width)[:cell_width]
 
                 row_cells.append(cell_str)
 
@@ -55,7 +63,9 @@ def render_grid(puzzle: puz.Puzzle, current_fill: str) -> str:
     return "\n".join(lines)
 
 
-def render_clue_context(puzzle: puz.Puzzle, current_fill: str, direction: str, clue_info: dict) -> str:
+def render_clue_context(
+    puzzle: puz.Puzzle, current_fill: str, direction: str, clue_info: dict
+) -> str:
     """
     Render a focused view showing the current state of a word.
 
