@@ -72,20 +72,9 @@ class GameState:
 
     def get_clue_text(self, direction: str, num: int) -> str | None:
         """Get the clue text for a specific clue."""
-        clues = (
-            self.numbering.across
-            if direction.lower() == "across"
-            else self.numbering.down
-        )
-        clue_texts = (
-            self.puz_data.clues[: len(self.numbering.across)]
-            if direction.lower() == "across"
-            else self.puz_data.clues[len(self.numbering.across) :]
-        )
-
-        for i, clue in enumerate(clues):
-            if clue["num"] == num:
-                return clue_texts[i] if i < len(clue_texts) else None
+        clue = self.get_clue(direction, num)
+        if clue:
+            return clue.get("clue")
         return None
 
     def submit_answer(self, direction: str, num: int, answer: str) -> tuple[bool, str]:

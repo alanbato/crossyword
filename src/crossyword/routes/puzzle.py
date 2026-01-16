@@ -42,29 +42,27 @@ def register_routes(app: Xitzin) -> None:
     def render_puzzle_page(game: GameState):
         """Render the main puzzle page."""
         grid = render_grid(game.puz_data, "".join(game.current_fill))
-        across_texts = game.puz_data.clues[: len(game.numbering.across)]
-        down_texts = game.puz_data.clues[len(game.numbering.across) :]
 
         across_clues = []
-        for i, clue in enumerate(game.numbering.across):
+        for clue in game.numbering.across:
             num = clue["num"]
             clue_id = f"{num}A"
             across_clues.append(
                 {
                     "num": num,
-                    "text": across_texts[i] if i < len(across_texts) else "?",
+                    "text": clue.get("clue", "?"),
                     "status": "[x]" if clue_id in game.solved_clues else "[ ]",
                 }
             )
 
         down_clues = []
-        for i, clue in enumerate(game.numbering.down):
+        for clue in game.numbering.down:
             num = clue["num"]
             clue_id = f"{num}D"
             down_clues.append(
                 {
                     "num": num,
-                    "text": down_texts[i] if i < len(down_texts) else "?",
+                    "text": clue.get("clue", "?"),
                     "status": "[x]" if clue_id in game.solved_clues else "[ ]",
                 }
             )
