@@ -1,6 +1,6 @@
-# Name Updated
+# Username Updated
 
-Your display name is now: {{ display_name }}
+Your username is now: {{ display_name }}
 
 => /profile Back to Profile
 => / Home

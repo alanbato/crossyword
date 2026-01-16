@@ -7,27 +7,47 @@ from xitzin.auth import get_identity, require_certificate
 from ..daily import get_or_assign_todays_puzzle
 from ..game import GameState
 from ..rendering import render_clue_context, render_grid
-from ..users import get_or_create_user
+from ..users import get_or_create_user, requires_registration
 
 
 def register_routes(app: Xitzin) -> None:
     """Register puzzle routes."""
 
+    def get_game_or_error(session: Session, request: Request):
+        """Load game state with validation checks. Returns (game, error) tuple."""
+        identity = get_identity(request)
+        user = get_or_create_user(session, identity.fingerprint)
+
+        if requires_registration(user):
+            return None, app.template("register_username.gmi")
+
+        puzzle = get_or_assign_todays_puzzle(session)
+        if not puzzle:
+            return None, app.template("no_puzzle.gmi")
+
+        config = request.app.state.config
+        game = GameState.load_or_create(session, user, puzzle, config.puzzles_dir)
+        return game, None
+
+    def validate_direction(direction: str):
+        """Validate direction parameter. Returns error response or None."""
+        if direction.lower() not in ["across", "down"]:
+            return app.template(
+                "error.gmi",
+                title="Invalid Direction",
+                message="Direction must be 'across' or 'down'.\n\n=> /puzzle Back to Puzzle",
+            )
+        return None
+
     @app.gemini("/puzzle")
     @require_certificate
     def puzzle_home(request: Request):
         """Main puzzle view with grid and all clues."""
-        identity = get_identity(request)
-
         with Session(request.app.state.engine) as session:
-            user = get_or_create_user(session, identity.fingerprint)
-            puzzle = get_or_assign_todays_puzzle(session)
+            game, error = get_game_or_error(session, request)
+            if error:
+                return error
 
-            if not puzzle:
-                return app.template("no_puzzle.gmi")
-
-            config = request.app.state.config
-            game = GameState.load_or_create(session, user, puzzle, config.puzzles_dir)
             game.save()
 
             grid = render_grid(game.puz_data, "".join(game.current_fill))
@@ -62,7 +82,7 @@ def register_routes(app: Xitzin) -> None:
 
             return app.template(
                 "puzzle.gmi",
-                puzzle=puzzle,
+                puzzle=game.puzzle,
                 grid=grid,
                 progress=int(game.get_completion_percentage()),
                 is_complete=game.is_complete(),
@@ -74,24 +94,21 @@ def register_routes(app: Xitzin) -> None:
     @require_certificate
     def view_clue(request: Request, direction: str, num: int):
         """View specific clue with current answer."""
-        identity = get_identity(request)
-
-        if direction.lower() not in ["across", "down"]:
-            return app.template("error.gmi", title="Invalid Direction", message="")
+        if error := validate_direction(direction):
+            return error
 
         with Session(request.app.state.engine) as session:
-            user = get_or_create_user(session, identity.fingerprint)
-            puzzle = get_or_assign_todays_puzzle(session)
-
-            if not puzzle:
-                return app.template("no_puzzle.gmi")
-
-            config = request.app.state.config
-            game = GameState.load_or_create(session, user, puzzle, config.puzzles_dir)
+            game, error = get_game_or_error(session, request)
+            if error:
+                return error
 
             clue_info = game.get_clue(direction, num)
             if not clue_info:
-                return app.template("error.gmi", title="Clue Not Found", message="")
+                return app.template(
+                    "error.gmi",
+                    title="Clue Not Found",
+                    message="That clue doesn't exist in this puzzle.\n\n=> /puzzle Back to Puzzle",
+                )
 
             clue_text = game.get_clue_text(direction, num)
             clue_id = f"{num}{direction[0].upper()}"
@@ -120,20 +137,13 @@ def register_routes(app: Xitzin) -> None:
     @require_certificate
     def submit_answer(request: Request, direction: str, num: int, query: str):
         """Process answer submission."""
-        identity = get_identity(request)
-
-        if direction.lower() not in ["across", "down"]:
-            return app.template("error.gmi", title="Invalid Direction", message="")
+        if error := validate_direction(direction):
+            return error
 
         with Session(request.app.state.engine) as session:
-            user = get_or_create_user(session, identity.fingerprint)
-            puzzle = get_or_assign_todays_puzzle(session)
-
-            if not puzzle:
-                return app.template("no_puzzle.gmi")
-
-            config = request.app.state.config
-            game = GameState.load_or_create(session, user, puzzle, config.puzzles_dir)
+            game, error = get_game_or_error(session, request)
+            if error:
+                return error
 
             is_correct, message = game.submit_answer(direction, num, query)
             game.save()
@@ -151,20 +161,13 @@ def register_routes(app: Xitzin) -> None:
     @require_certificate
     def clear_answer(request: Request, direction: str, num: int):
         """Clear the answer for a specific clue."""
-        identity = get_identity(request)
-
-        if direction.lower() not in ["across", "down"]:
-            return app.template("error.gmi", title="Invalid Direction", message="")
+        if error := validate_direction(direction):
+            return error
 
         with Session(request.app.state.engine) as session:
-            user = get_or_create_user(session, identity.fingerprint)
-            puzzle = get_or_assign_todays_puzzle(session)
-
-            if not puzzle:
-                return app.template("no_puzzle.gmi")
-
-            config = request.app.state.config
-            game = GameState.load_or_create(session, user, puzzle, config.puzzles_dir)
+            game, error = get_game_or_error(session, request)
+            if error:
+                return error
 
             game.clear_answer(direction, num)
             game.save()

@@ -1,0 +1,12 @@
+# Username Required
+
+Before you can play puzzles, you need to choose a username.
+
+## Username Requirements
+
+* 1-20 characters
+* Letters, numbers, and underscores only
+* Must be unique
+
+=> /profile/name Choose Username
+=> / Home

@@ -1,12 +1,13 @@
 """User profile routes."""
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, func, select
 from xitzin import Request, Xitzin
 from xitzin.auth import get_identity, require_certificate
 
 from ..models import CompletedPuzzle, PlayerProgress
 from ..rendering import format_time
-from ..users import get_or_create_user
+from ..users import get_or_create_user, validate_username
 
 
 def register_routes(app: Xitzin) -> None:
@@ -71,29 +72,32 @@ def register_routes(app: Xitzin) -> None:
                 recent=recent,
             )
 
-    @app.input("/profile/name", prompt="Enter your display name:")
+    @app.input("/profile/name", prompt="Enter your username:")
     @require_certificate
     def set_display_name(request: Request, query: str):
-        """Set user display name."""
+        """Set user display name (username)."""
         identity = get_identity(request)
+        username = query.strip()
 
-        if len(query) > 20:
+        is_valid, error_msg = validate_username(username)
+        if not is_valid:
             return app.template(
                 "error.gmi",
-                title="Name Too Long",
-                message="Display name must be 20 characters or less.\n\n=> /profile/name Try Again",
-            )
-
-        if len(query) < 1:
-            return app.template(
-                "error.gmi",
-                title="Name Too Short",
-                message="Please enter a name.\n\n=> /profile/name Try Again",
+                title="Invalid Username",
+                message=f"{error_msg}\n\n=> /profile/name Try Again",
             )
 
         with Session(request.app.state.engine) as session:
             user = get_or_create_user(session, identity.fingerprint)
-            user.display_name = query.strip()
-            session.commit()
+            user.display_name = username
+            try:
+                session.commit()
+            except IntegrityError:
+                session.rollback()
+                return app.template(
+                    "error.gmi",
+                    title="Username Taken",
+                    message=f"The username '{username}' is already taken.\n\n=> /profile/name Try Again",
+                )
 
             return app.template("name_updated.gmi", display_name=user.display_name)
