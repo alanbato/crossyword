@@ -73,10 +73,8 @@ Environment variables:
 | Route | Description |
 |-------|-------------|
 | `/` | Home page |
-| `/puzzle` | Today's puzzle overview |
-| `/puzzle/grid` | View the crossword grid |
-| `/puzzle/clues/across` | Across clues |
-| `/puzzle/clues/down` | Down clues |
+| `/puzzle` | Today's puzzle with grid and all clues |
+| `/puzzle/clue/{direction}/{num}` | View and answer a specific clue |
 | `/leaderboard` | Today's leaderboard |
 | `/profile` | Your stats and history |
 | `/help` | How to play |

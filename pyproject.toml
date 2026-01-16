@@ -18,3 +18,11 @@ crossyword = "crossyword:main"
 [build-system]
 requires = ["uv_build>=0.9.10,<0.10.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "ruff>=0.14.13",
+    "ty>=0.0.12",
+]

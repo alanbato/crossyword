@@ -16,7 +16,7 @@ def register_routes(app: Xitzin) -> None:
     @app.gemini("/puzzle")
     @require_certificate
     def puzzle_home(request: Request):
-        """Main puzzle view."""
+        """Main puzzle view with grid and all clues."""
         identity = get_identity(request)
 
         with Session(request.app.state.engine) as session:
@@ -30,7 +30,7 @@ def register_routes(app: Xitzin) -> None:
             game = GameState.load_or_create(session, user, puzzle, config.puzzles_dir)
             game.save()
 
-            fill_pct = game.get_fill_percentage()
+            grid = render_grid(game.puz_data, "".join(game.current_fill))
             correct_pct = game.get_completion_percentage()
 
             lines = [
@@ -44,8 +44,11 @@ def register_routes(app: Xitzin) -> None:
 
             lines.extend(
                 [
-                    f"Grid: {puzzle.width}x{puzzle.height} | Clues: {puzzle.clue_count}",
-                    f"Filled: {fill_pct:.0f}% | Correct: {correct_pct:.0f}%",
+                    "```crossword",
+                    grid,
+                    "```",
+                    "",
+                    f"Progress: {correct_pct:.0f}% correct",
                     "",
                 ]
             )
@@ -60,96 +63,34 @@ def register_routes(app: Xitzin) -> None:
                     ]
                 )
 
+            # Across clues
+            lines.append("## Across")
+            lines.append("")
+            across_texts = game.puz_data.clues[: len(game.numbering.across)]
+            for i, clue in enumerate(game.numbering.across):
+                num = clue["num"]
+                clue_id = f"{num}A"
+                text = across_texts[i] if i < len(across_texts) else "?"
+                status = "[x]" if clue_id in game.solved_clues else "[ ]"
+                lines.append(f"=> /puzzle/clue/across/{num} {status} {num}. {text}")
+
+            lines.append("")
+
+            # Down clues
+            lines.append("## Down")
+            lines.append("")
+            down_texts = game.puz_data.clues[len(game.numbering.across) :]
+            for i, clue in enumerate(game.numbering.down):
+                num = clue["num"]
+                clue_id = f"{num}D"
+                text = down_texts[i] if i < len(down_texts) else "?"
+                status = "[x]" if clue_id in game.solved_clues else "[ ]"
+                lines.append(f"=> /puzzle/clue/down/{num} {status} {num}. {text}")
+
             lines.extend(
                 [
-                    "=> /puzzle/grid View Grid",
-                    "=> /puzzle/clues/across Across Clues",
-                    "=> /puzzle/clues/down Down Clues",
                     "",
                     "=> / Home",
-                ]
-            )
-
-            return "\n".join(lines)
-
-    @app.gemini("/puzzle/grid")
-    @require_certificate
-    def puzzle_grid(request: Request):
-        """View current grid state."""
-        identity = get_identity(request)
-
-        with Session(request.app.state.engine) as session:
-            user = get_or_create_user(session, identity.fingerprint)
-            puzzle = get_or_assign_todays_puzzle(session)
-
-            if not puzzle:
-                return "# No Puzzle Available\n\n=> / Home"
-
-            config = request.app.state.config
-            game = GameState.load_or_create(session, user, puzzle, config.puzzles_dir)
-
-            grid = render_grid(game.puz_data, "".join(game.current_fill))
-
-            lines = [
-                f"# {puzzle.title}",
-                "",
-                "```crossword",
-                grid,
-                "```",
-                "",
-                f"Progress: {game.get_completion_percentage():.0f}% correct",
-                "",
-                "=> /puzzle/clues/across Across Clues",
-                "=> /puzzle/clues/down Down Clues",
-                "=> /puzzle Back to Puzzle",
-            ]
-
-            return "\n".join(lines)
-
-    @app.gemini("/puzzle/clues/{direction}")
-    @require_certificate
-    def clues_by_direction(request: Request, direction: str):
-        """List clues filtered by direction."""
-        identity = get_identity(request)
-
-        if direction.lower() not in ["across", "down"]:
-            return "# Invalid Direction\n\n=> /puzzle Back to Puzzle"
-
-        with Session(request.app.state.engine) as session:
-            user = get_or_create_user(session, identity.fingerprint)
-            puzzle = get_or_assign_todays_puzzle(session)
-
-            if not puzzle:
-                return "# No Puzzle Available\n\n=> / Home"
-
-            config = request.app.state.config
-            game = GameState.load_or_create(session, user, puzzle, config.puzzles_dir)
-
-            clues = game.numbering.across if direction.lower() == "across" else game.numbering.down
-            clue_texts = (
-                game.puz_data.clues[: len(game.numbering.across)]
-                if direction.lower() == "across"
-                else game.puz_data.clues[len(game.numbering.across) :]
-            )
-
-            lines = [
-                f"# {direction.title()} Clues",
-                "",
-            ]
-
-            for i, clue in enumerate(clues):
-                num = clue["num"]
-                clue_id = f"{num}{direction[0].upper()}"
-                text = clue_texts[i] if i < len(clue_texts) else "?"
-
-                status = "[x]" if clue_id in game.solved_clues else "[ ]"
-                lines.append(f"=> /puzzle/clue/{direction}/{num} {status} {num}. {text}")
-
-            lines.extend(
-                [
-                    "",
-                    "=> /puzzle/grid View Grid",
-                    "=> /puzzle Back to Puzzle",
                 ]
             )
 
@@ -211,14 +152,16 @@ def register_routes(app: Xitzin) -> None:
                 [
                     f"=> /puzzle/clear/{direction}/{num} Clear Answer",
                     "",
-                    f"=> /puzzle/clues/{direction} Back to {direction.title()} Clues",
-                    "=> /puzzle/grid View Grid",
+                    "=> /puzzle Back to Puzzle",
                 ]
             )
 
             return "\n".join(lines)
 
-    @app.input("/puzzle/answer/{direction}/{num}", prompt="Enter your answer (use SPACE for blanks):")
+    @app.input(
+        "/puzzle/answer/{direction}/{num}",
+        prompt="Enter your answer (use SPACE for blanks):",
+    )
     @require_certificate
     def submit_answer(request: Request, direction: str, num: int, query: str):
         """Process answer submission."""
@@ -259,12 +202,7 @@ def register_routes(app: Xitzin) -> None:
             else:
                 lines.append(f"=> /puzzle/clue/{direction}/{num} Back to Clue")
 
-            lines.extend(
-                [
-                    f"=> /puzzle/clues/{direction} {direction.title()} Clues",
-                    "=> /puzzle/grid View Grid",
-                ]
-            )
+            lines.append("=> /puzzle Back to Puzzle")
 
             return "\n".join(lines)
 
@@ -295,5 +233,5 @@ def register_routes(app: Xitzin) -> None:
 The answer for {num} {direction.title()} has been cleared.
 
 => /puzzle/clue/{direction}/{num} Back to Clue
-=> /puzzle/clues/{direction} {direction.title()} Clues
+=> /puzzle Back to Puzzle
 """
