@@ -8,20 +8,39 @@ by {{ puzzle.author }}
 {{ grid }}
 ```
 
+{% if is_completed %}
+✓ COMPLETED
+
+=> /leaderboard/{{ date_str }} View Leaderboard
+{% else %}
 Progress: {{ progress }}% filled
 
+{% if date_str %}
+=> /puzzle/{{ date_str }}/check Check Solution
+{% else %}
 => /puzzle/check Check Solution
+{% endif %}
+{% endif %}
 
 ## Across
 
 {% for clue in across_clues %}
+{% if date_str %}
+=> /puzzle/{{ date_str }}/clue/across/{{ clue.num }} {{ clue.status }} {{ clue.num }}. {{ clue.text }}
+{% else %}
 => /puzzle/clue/across/{{ clue.num }} {{ clue.status }} {{ clue.num }}. {{ clue.text }}
+{% endif %}
 {% endfor %}
 
 ## Down
 
 {% for clue in down_clues %}
+{% if date_str %}
+=> /puzzle/{{ date_str }}/clue/down/{{ clue.num }} {{ clue.status }} {{ clue.num }}. {{ clue.text }}
+{% else %}
 => /puzzle/clue/down/{{ clue.num }} {{ clue.status }} {{ clue.num }}. {{ clue.text }}
+{% endif %}
 {% endfor %}
 
+=> /archive Puzzle Archive
 => / Home

@@ -2,5 +2,10 @@
 
 The answer for {{ num }} {{ direction | title }} has been cleared.
 
+{% if date_str %}
+=> /puzzle/{{ date_str }}/clue/{{ direction }}/{{ num }} Back to Clue
+=> /puzzle/{{ date_str }} Back to Puzzle
+{% else %}
 => /puzzle/clue/{{ direction }}/{{ num }} Back to Clue
 => /puzzle Back to Puzzle
+{% endif %}

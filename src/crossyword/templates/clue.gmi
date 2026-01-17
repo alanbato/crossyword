@@ -8,11 +8,26 @@ Length: {{ length }} letters
 {{ context }}
 ```
 
+{% if is_completed %}
+✓ Puzzle completed
+{% elif date_str %}
+{% if is_solved %}
+=> /puzzle/{{ date_str }}/answer/{{ direction }}/{{ num }} Change Answer
+{% else %}
+=> /puzzle/{{ date_str }}/answer/{{ direction }}/{{ num }} Enter Answer
+{% endif %}
+=> /puzzle/{{ date_str }}/clear/{{ direction }}/{{ num }} Clear Answer
+{% else %}
 {% if is_solved %}
 => /puzzle/answer/{{ direction }}/{{ num }} Change Answer
 {% else %}
 => /puzzle/answer/{{ direction }}/{{ num }} Enter Answer
 {% endif %}
 => /puzzle/clear/{{ direction }}/{{ num }} Clear Answer
+{% endif %}
 
+{% if date_str %}
+=> /puzzle/{{ date_str }} Back to Puzzle
+{% else %}
 => /puzzle Back to Puzzle
+{% endif %}

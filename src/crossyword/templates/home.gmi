@@ -18,6 +18,7 @@ Most Gemini clients can generate one for you.
 {% endif %}
 
 => /leaderboard Today's Leaderboard
+=> /archive Puzzle Archive
 => /help How to Play
 {% if user %}
 => /profile Your Profile

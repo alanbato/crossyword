@@ -24,7 +24,9 @@ def import_puzzles(session: Session, puzzles_dir: Path) -> list[Puzzle]:
         if not filename.endswith(".puz"):
             continue
 
-        existing = session.exec(select(Puzzle).where(Puzzle.filename == filename)).first()
+        existing = session.exec(
+            select(Puzzle).where(Puzzle.filename == filename)
+        ).first()
         if existing:
             continue
 
@@ -57,7 +59,9 @@ def import_puzzles(session: Session, puzzles_dir: Path) -> list[Puzzle]:
     return imported
 
 
-def import_puzzle_file(session: Session, filepath: Path, puzzles_dir: Path) -> Puzzle | None:
+def import_puzzle_file(
+    session: Session, filepath: Path, puzzles_dir: Path
+) -> Puzzle | None:
     """
     Import a single .puz file.
 

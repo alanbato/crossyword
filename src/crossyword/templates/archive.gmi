@@ -1,0 +1,13 @@
+# Puzzle Archive
+
+Browse past crossword puzzles:
+
+{% if entries %}
+{% for entry in entries %}
+=> /puzzle/{{ entry.date }} {% if entry.completed %}✓{% else %}○{% endif %} {{ entry.date }} - {{ entry.title }}
+{% endfor %}
+{% else %}
+No puzzles available yet.
+{% endif %}
+
+=> / Home

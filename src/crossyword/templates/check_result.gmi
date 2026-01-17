@@ -6,9 +6,17 @@ Please fill in all cells before checking your solution.
 {% elif is_complete %}
 Congratulations! You've completed the puzzle!
 
+{% if date_str %}
+=> /leaderboard/{{ date_str }} View Leaderboard
+{% else %}
 => /leaderboard View Leaderboard
+{% endif %}
 {% else %}
 You have {{ incorrect_message }} incorrect clue{% if incorrect_count != 1 %}s{% endif %}.
 
 {% endif %}
+{% if date_str %}
+=> /puzzle/{{ date_str }} Back to Puzzle
+{% else %}
 => /puzzle Back to Puzzle
+{% endif %}

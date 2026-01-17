@@ -21,7 +21,9 @@ def get_todays_puzzle(session: Session) -> Puzzle | None:
     return None
 
 
-def assign_daily_puzzle(session: Session, target_date: dt.date | None = None) -> Puzzle | None:
+def assign_daily_puzzle(
+    session: Session, target_date: dt.date | None = None
+) -> Puzzle | None:
     """
     Assign a puzzle to a date.
 
@@ -32,7 +34,9 @@ def assign_daily_puzzle(session: Session, target_date: dt.date | None = None) ->
     """
     target_date = target_date or dt.date.today()
 
-    existing = session.exec(select(DailyPuzzle).where(DailyPuzzle.date == target_date)).first()
+    existing = session.exec(
+        select(DailyPuzzle).where(DailyPuzzle.date == target_date)
+    ).first()
     if existing:
         return existing.puzzle
 
@@ -68,3 +72,10 @@ def get_or_assign_todays_puzzle(session: Session) -> Puzzle | None:
     if puzzle:
         return puzzle
     return assign_daily_puzzle(session)
+
+
+def get_puzzle_for_date(session: Session, target_date: dt.date) -> Puzzle | None:
+    """Get puzzle assigned to a specific date (no auto-assignment)."""
+    statement = select(DailyPuzzle).where(DailyPuzzle.date == target_date)
+    daily = session.exec(statement).first()
+    return daily.puzzle if daily else None
