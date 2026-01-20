@@ -17,3 +17,6 @@ puzzles/*.puz
 
 CLAUDE.md
 .claude/
+
+# Personal deployment guide
+DEPLOYMENT.md
