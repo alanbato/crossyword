@@ -5,6 +5,7 @@ from xitzin import Request, Xitzin
 from xitzin.auth import optional_certificate
 
 from ..daily import get_or_assign_todays_puzzle
+from ..rendering import render_logo
 from ..users import get_or_create_user
 
 
@@ -27,9 +28,10 @@ def register_routes(app: Xitzin) -> None:
                     user=user,
                     display_name=user.display_name or identity.short_id,
                     puzzle=puzzle,
+                    logo=render_logo(),
                 )
 
-        return app.template("home.gmi", user=None, puzzle=None)
+        return app.template("home.gmi", user=None, puzzle=None, logo=render_logo())
 
     @app.gemini("/help")
     def help_page(request: Request):

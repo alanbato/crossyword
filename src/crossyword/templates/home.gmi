@@ -1,5 +1,9 @@
 # Crossyword
 
+```
+{{ logo }}
+```
+
 Welcome to Crossyword - Daily crossword puzzles over Gemini!
 
 {% if user %}

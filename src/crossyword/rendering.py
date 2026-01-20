@@ -97,6 +97,47 @@ def render_clue_context(
         return "Current:\n" + "\n".join(letters)
 
 
+def render_logo() -> str:
+    """
+    Render the Crossyword logo as ASCII art.
+
+    Displays CROSSY horizontally with WORD vertically intersecting at O:
+      W
+    CROSSY
+      R
+      D
+    """
+    # Grid layout: 4 rows x 6 cols
+    # Row 0: .  .  W  .  .  .
+    # Row 1: C  R  O  S  S  Y
+    # Row 2: .  .  R  .  .  .
+    # Row 3: .  .  D  .  .  .
+    grid = [
+        [".", ".", "W", ".", ".", "."],
+        ["C", "R", "O", "S", "S", "Y"],
+        [".", ".", "R", ".", ".", "."],
+        [".", ".", "D", ".", ".", "."],
+    ]
+
+    lines = []
+    cell_width = 4
+
+    lines.append("+" + "+".join(["-" * cell_width] * 6) + "+")
+
+    for row in grid:
+        row_cells = []
+        for cell in row:
+            if cell == ".":
+                row_cells.append("#" * cell_width)
+            else:
+                cell_str = f" {cell}  "
+                row_cells.append(cell_str)
+        lines.append("|" + "|".join(row_cells) + "|")
+        lines.append("+" + "+".join(["-" * cell_width] * 6) + "+")
+
+    return "\n".join(lines)
+
+
 def format_time(seconds: int) -> str:
     """Format seconds as human-readable time."""
     if seconds < 60:
