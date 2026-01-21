@@ -22,27 +22,19 @@ def register_routes(app: Xitzin) -> None:
         with Session(request.app.state.engine) as session:
             user = get_or_create_user(session, identity.fingerprint)
 
-            completed_count = session.exec(
-                select(func.count(CompletedPuzzle.id)).where(
-                    CompletedPuzzle.user_id == user.id
-                )
+            # Combine aggregations into single query
+            stats = session.exec(
+                select(
+                    func.count(CompletedPuzzle.id),
+                    func.min(CompletedPuzzle.completion_time_seconds),
+                    func.avg(CompletedPuzzle.completion_time_seconds),
+                ).where(CompletedPuzzle.user_id == user.id)
             ).one()
+            completed_count, best_time, avg_time = stats
 
             in_progress_count = session.exec(
                 select(func.count(PlayerProgress.id)).where(
                     PlayerProgress.user_id == user.id
-                )
-            ).one()
-
-            best_time = session.exec(
-                select(func.min(CompletedPuzzle.completion_time_seconds)).where(
-                    CompletedPuzzle.user_id == user.id
-                )
-            ).one()
-
-            avg_time = session.exec(
-                select(func.avg(CompletedPuzzle.completion_time_seconds)).where(
-                    CompletedPuzzle.user_id == user.id
                 )
             ).one()
 

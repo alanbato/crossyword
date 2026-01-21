@@ -77,6 +77,15 @@ class GameState:
             return clue.get("clue")
         return None
 
+    def _get_clue_cell_indices(self, clue: dict, direction: str) -> list[int]:
+        """Get all cell indices for a clue's letters."""
+        cell = clue["cell"]
+        width = self.puz_data.width
+        is_across = direction.lower() == "across"
+        return [
+            cell + i if is_across else cell + (i * width) for i in range(clue["len"])
+        ]
+
     def submit_answer(self, direction: str, num: int, answer: str) -> tuple[bool, str]:
         """
         Submit an answer for a clue.
@@ -93,15 +102,8 @@ class GameState:
         if len(answer) != expected_length:
             return False, f"Answer must be {expected_length} letters"
 
-        cell = clue["cell"]
-        width = self.puz_data.width
-
-        for i, char in enumerate(answer):
-            if direction.lower() == "across":
-                idx = cell + i
-            else:
-                idx = cell + (i * width)
-
+        indices = self._get_clue_cell_indices(clue, direction)
+        for idx, char in zip(indices, answer):
             if self.current_fill[idx] != ".":
                 self.current_fill[idx] = char
 
@@ -117,15 +119,7 @@ class GameState:
         if not clue:
             return False
 
-        cell = clue["cell"]
-        width = self.puz_data.width
-
-        for i in range(clue["len"]):
-            if direction.lower() == "across":
-                idx = cell + i
-            else:
-                idx = cell + (i * width)
-
+        for idx in self._get_clue_cell_indices(clue, direction):
             if self.current_fill[idx] != ".":
                 self.current_fill[idx] = " "
 
@@ -161,35 +155,17 @@ class GameState:
 
     def _is_clue_correct(self, clue: dict, direction: str) -> bool:
         """Check if a specific clue's answer is correct."""
-        cell = clue["cell"]
-        width = self.puz_data.width
-
-        for i in range(clue["len"]):
-            if direction.lower() == "across":
-                idx = cell + i
-            else:
-                idx = cell + (i * width)
-
-            if self.current_fill[idx] != self.puz_data.solution[idx]:
-                return False
-
-        return True
+        return all(
+            self.current_fill[idx] == self.puz_data.solution[idx]
+            for idx in self._get_clue_cell_indices(clue, direction)
+        )
 
     def is_clue_filled(self, clue: dict, direction: str) -> bool:
         """Check if all cells for a clue are filled (no empty spaces)."""
-        cell = clue["cell"]
-        width = self.puz_data.width
-
-        for i in range(clue["len"]):
-            if direction.lower() == "across":
-                idx = cell + i
-            else:
-                idx = cell + (i * width)
-
-            if self.current_fill[idx] == " ":
-                return False
-
-        return True
+        return all(
+            self.current_fill[idx] != " "
+            for idx in self._get_clue_cell_indices(clue, direction)
+        )
 
     def get_completion_percentage(self) -> float:
         """Calculate percentage of correctly filled cells."""

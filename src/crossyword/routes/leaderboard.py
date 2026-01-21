@@ -13,6 +13,22 @@ from ..rendering import format_time
 def register_routes(app: Xitzin) -> None:
     """Register leaderboard routes."""
 
+    def get_leaderboard_entries(session: Session, puzzle_id: int) -> list[dict]:
+        """Get leaderboard entries for a puzzle."""
+        statement = (
+            select(CompletedPuzzle, User)
+            .join(User)
+            .where(CompletedPuzzle.puzzle_id == puzzle_id)
+            .order_by(CompletedPuzzle.completion_time_seconds)
+        )
+        return [
+            {
+                "name": user.display_name or user.fingerprint[:8],
+                "time": format_time(completed.completion_time_seconds),
+            }
+            for completed, user in session.exec(statement).all()
+        ]
+
     @app.gemini("/leaderboard")
     def today_leaderboard(request: Request):
         """Show today's puzzle leaderboard."""
@@ -27,27 +43,11 @@ def register_routes(app: Xitzin) -> None:
                     entries=[],
                 )
 
-            statement = (
-                select(CompletedPuzzle, User)
-                .join(User)
-                .where(CompletedPuzzle.puzzle_id == puzzle.id)
-                .order_by(CompletedPuzzle.completion_time_seconds)
-            )
-            results = session.exec(statement).all()
-
-            entries = [
-                {
-                    "name": user.display_name or user.fingerprint[:8],
-                    "time": format_time(completed.completion_time_seconds),
-                }
-                for completed, user in results
-            ]
-
             return app.template(
                 "leaderboard.gmi",
                 title="Today's Leaderboard",
                 puzzle=puzzle,
-                entries=entries,
+                entries=get_leaderboard_entries(session, puzzle.id),
             )
 
     @app.gemini("/leaderboard/{date_str}")
@@ -75,27 +75,9 @@ def register_routes(app: Xitzin) -> None:
                     entries=[],
                 )
 
-            puzzle = daily.puzzle
-
-            statement = (
-                select(CompletedPuzzle, User)
-                .join(User)
-                .where(CompletedPuzzle.puzzle_id == puzzle.id)
-                .order_by(CompletedPuzzle.completion_time_seconds)
-            )
-            results = session.exec(statement).all()
-
-            entries = [
-                {
-                    "name": user.display_name or user.fingerprint[:8],
-                    "time": format_time(completed.completion_time_seconds),
-                }
-                for completed, user in results
-            ]
-
             return app.template(
                 "leaderboard.gmi",
                 title=f"Leaderboard for {date_str}",
-                puzzle=puzzle,
-                entries=entries,
+                puzzle=daily.puzzle,
+                entries=get_leaderboard_entries(session, daily.puzzle.id),
             )
