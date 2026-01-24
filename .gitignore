@@ -20,3 +20,5 @@ CLAUDE.md
 
 # Personal deployment guide
 DEPLOYMENT.md
+.coverage
+scripts/
