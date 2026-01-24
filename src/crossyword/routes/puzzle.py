@@ -103,10 +103,19 @@ def register_routes(app: Xitzin) -> None:
         ]
 
     def render_puzzle_page(
-        game: GameState, is_completed: bool = False, date_str: str | None = None
+        game: GameState,
+        is_completed: bool = False,
+        date_str: str | None = None,
+        crossyword_date: str | None = None,
     ):
         """Render the main puzzle page."""
         grid = render_grid(game.puz_data, "".join(game.current_fill))
+
+        # Use crossyword_date if provided, otherwise use date_str (for archived),
+        # otherwise use today's date (for today's puzzle)
+        leaderboard_date = (
+            crossyword_date or date_str or dt.date.today().strftime("%Y-%m-%d")
+        )
 
         return app.template(
             "puzzle.gmi",
@@ -117,6 +126,7 @@ def register_routes(app: Xitzin) -> None:
             down_clues=build_clue_list(game, "down"),
             is_completed=is_completed,
             date_str=date_str,
+            crossyword_date=leaderboard_date,
         )
 
     def format_check_result(game: GameState, date_str: str | None = None):

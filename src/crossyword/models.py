@@ -26,6 +26,8 @@ class Puzzle(SQLModel, table=True):
     title: str
     author: str | None = None
     copyright: str | None = None
+    source: str | None = None
+    original_date: dt.date | None = None
     width: int
     height: int
     clue_count: int

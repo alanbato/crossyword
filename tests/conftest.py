@@ -34,8 +34,10 @@ def puzzles_dir(project_root: Path) -> Path:
 
 @pytest.fixture
 def test_puz_path(puzzles_dir: Path) -> Path:
-    """Return path to a known test puzzle file (Guardian Speedy - smallest)."""
-    return puzzles_dir / "25-04-20_Guardian Speedy_Speedy crossword No 1,541_.puz"
+    """Return path to a known test puzzle file."""
+    return (
+        puzzles_dir / "21-01-01_Newsday_WHO'S WHAT_S.N., edited by Stanley Newman.puz"
+    )
 
 
 # --- Puzzle data fixtures ---

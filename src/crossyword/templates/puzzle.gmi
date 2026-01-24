@@ -1,9 +1,11 @@
 # {{ puzzle.title }}
 
-{% if puzzle.author %}
-by {{ puzzle.author }}
+{% if puzzle.author %}by {{ puzzle.author }}
+{% endif -%}
+{% if puzzle.source %}Source: {{ puzzle.source }}{% if puzzle.original_date %} ({{ puzzle.original_date.strftime('%B %d, %Y') }}){% endif %}
+{% endif -%}
+Crossyword Date: {{ crossyword_date }}
 
-{% endif %}
 ```crossword
 {{ grid }}
 ```
@@ -11,7 +13,7 @@ by {{ puzzle.author }}
 {% if is_completed %}
 ✓ COMPLETED
 
-=> /leaderboard/{{ date_str }} View Leaderboard
+=> /leaderboard/{{ crossyword_date }} View Leaderboard
 {% else %}
 Progress: {{ progress }}% filled
 

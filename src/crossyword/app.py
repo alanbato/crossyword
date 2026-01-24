@@ -2,11 +2,70 @@
 
 from pathlib import Path
 
+from alembic import command
+from alembic.config import Config as AlembicConfig
 from sqlmodel import SQLModel, Session, create_engine
 from xitzin import Xitzin
 
 from .config import Config
 from .puzzle_import import import_puzzles
+
+
+def stamp_new_database(engine, database_url: str) -> None:
+    """Stamp a newly created database with current migration head.
+
+    This ensures future migrations will run correctly on databases
+    that were created via create_all() rather than migrations.
+    """
+    from sqlalchemy import inspect
+
+    project_root = Path(__file__).parent.parent.parent
+    alembic_ini = project_root / "alembic.ini"
+
+    if not alembic_ini.exists():
+        return
+
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+
+    # If tables exist but no alembic_version, stamp the database
+    if "puzzle" in table_names and "alembic_version" not in table_names:
+        alembic_cfg = AlembicConfig(str(alembic_ini))
+        alembic_cfg.set_main_option("sqlalchemy.url", database_url)
+        command.stamp(alembic_cfg, "head")
+
+
+def run_migrations(engine, database_url: str) -> None:
+    """Run Alembic migrations to upgrade database schema.
+
+    Handles three cases:
+    1. Existing database with alembic_version: run upgrade to head
+    2. Existing database without alembic_version: stamp with head (schema is current)
+    3. New database: will be created by create_all(), then stamped
+    """
+    from sqlalchemy import inspect
+
+    # Find alembic.ini relative to this file
+    project_root = Path(__file__).parent.parent.parent
+    alembic_ini = project_root / "alembic.ini"
+
+    if not alembic_ini.exists():
+        # In development/testing, migrations might not be available
+        return
+
+    alembic_cfg = AlembicConfig(str(alembic_ini))
+    alembic_cfg.set_main_option("sqlalchemy.url", database_url)
+
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+
+    if "alembic_version" in table_names:
+        # Existing database with migration tracking - run any pending migrations
+        command.upgrade(alembic_cfg, "head")
+    elif "puzzle" in table_names:
+        # Existing database without alembic_version - stamp it as current
+        # This handles databases created before Alembic was added
+        command.stamp(alembic_cfg, "head")
 
 
 def create_app(config: Config | None = None) -> Xitzin:
@@ -28,7 +87,12 @@ def create_app(config: Config | None = None) -> Xitzin:
     @app.on_startup
     async def startup():
         """Initialize database and import puzzles."""
+        # Run migrations for existing databases first
+        run_migrations(engine, config.database_url)
+        # Create any missing tables (for new databases or new models)
         SQLModel.metadata.create_all(engine)
+        # Stamp new databases so future migrations work correctly
+        stamp_new_database(engine, config.database_url)
         with Session(engine) as session:
             imported = import_puzzles(session, config.puzzles_dir)
             if imported:
