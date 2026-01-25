@@ -47,6 +47,15 @@ uv run crossyword
 
 The server starts on `gemini://localhost:1965` with auto-generated TLS certificates.
 
+### Docker
+
+```bash
+docker build -t crossyword .
+docker run -p 1965:1965 -v ./puzzles:/app/puzzles -v ./data:/app/data crossyword
+```
+
+Mount volumes for `/app/puzzles` (puzzle files), `/app/data` (database), and optionally `/app/certs` (TLS certificates).
+
 ### Configuration
 
 Environment variables:
@@ -62,7 +71,7 @@ Environment variables:
 
 ## Playing
 
-1. Connect with a Gemini client (Lagrange, Kristall, Amfora, etc.)
+1. Connect with a Gemini client (Astronomo, Lagrange, Kristall, Amfora, etc.)
 2. Enable a client certificate for identification
 3. Navigate to today's puzzle
 4. Select clues and enter answers word-by-word
@@ -75,13 +84,15 @@ Environment variables:
 | `/` | Home page |
 | `/puzzle` | Today's puzzle with grid and all clues |
 | `/puzzle/clue/{direction}/{num}` | View and answer a specific clue |
+| `/puzzle/check` | Check your answers for errors |
+| `/archive` | Browse and play past puzzles |
 | `/leaderboard` | Today's leaderboard |
 | `/profile` | Your stats and history |
 | `/help` | How to play |
 
 ## Tech Stack
 
-- [Xitzin](https://github.com/alanbato/xitzin) - Gemini framework
+- [Xitzin](https://github.com/alanbato/xitzin) - Gemini application framework
 - [puzpy](https://github.com/alexdej/puzpy) - .puz file parsing
 - [SQLModel](https://sqlmodel.tiangolo.com/) - Database ORM
 

@@ -16,14 +16,14 @@ ENV UV_NO_CACHE=1
 ENV UV_LINK_MODE=copy
 
 # Install dependencies first (cached layer)
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-install-project --no-dev
+    uv sync --frozen --no-install-project --no-dev
 
 # Copy source and install the project
 COPY src/ src/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-dev
+    uv sync --frozen --no-dev
 
 
 # --- Runtime stage ---

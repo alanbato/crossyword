@@ -37,6 +37,7 @@ tests/
 
 # Documentation
 *.md
+!README.md
 !src/**/*.md
 
 # Build artifacts
