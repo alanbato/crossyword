@@ -11,6 +11,10 @@ services:
     restart: unless-stopped
     ports:
       - "${CROSSYWORD_PORT:-1965}:1965"
+    volumes:
+      - /data/crossyword/data:/app/data
+      - /data/crossyword/puzzles:/app/puzzles
+      - /data/crossyword/certs:/app/certs
     environment:
       - CROSSYWORD_DATABASE_URL=${CROSSYWORD_DATABASE_URL:-sqlite:////app/data/crossyword.db}
       - CROSSYWORD_PUZZLES_DIR=${CROSSYWORD_PUZZLES_DIR:-/app/puzzles}
