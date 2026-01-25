@@ -18,12 +18,12 @@ ENV UV_LINK_MODE=copy
 # Install dependencies first (cached layer)
 COPY pyproject.toml uv.lock README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev
+    uv sync --no-install-project --no-dev
 
 # Copy source and install the project
 COPY src/ src/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+    uv sync --no-dev
 
 
 # --- Runtime stage ---
@@ -35,8 +35,9 @@ WORKDIR /app
 RUN groupadd --gid 1000 crossyword && \
     useradd --uid 1000 --gid crossyword --shell /bin/bash --create-home crossyword
 
-# Copy the virtual environment from builder
+# Copy the virtual environment and source from builder
 COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/src /app/src
 
 # Set up paths
 ENV PATH="/app/.venv/bin:$PATH"
