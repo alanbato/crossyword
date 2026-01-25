@@ -51,10 +51,14 @@ The server starts on `gemini://localhost:1965` with auto-generated TLS certifica
 
 ```bash
 docker build -t crossyword .
-docker run -p 1965:1965 -v ./puzzles:/app/puzzles -v ./data:/app/data crossyword
+docker run -p 1965:1965 \
+  -v ./puzzles:/app/puzzles \
+  -v ./data:/app/data \
+  -v ./certs:/app/certs \
+  crossyword
 ```
 
-Mount volumes for `/app/puzzles` (puzzle files), `/app/data` (database), and optionally `/app/certs` (TLS certificates).
+Mount volumes for `/app/puzzles` (puzzle files), `/app/data` (database), and `/app/certs` (TLS certificates with `cert.pem` and `key.pem`).
 
 ### Configuration
 

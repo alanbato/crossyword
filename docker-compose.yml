@@ -11,13 +11,6 @@ services:
     restart: unless-stopped
     ports:
       - "${CROSSYWORD_PORT:-1965}:1965"
-    volumes:
-      # Persistent data storage
-      - crossyword-data:/app/data
-      # Puzzle files (mount your .puz files here)
-      - crossyword-puzzles:/app/puzzles
-      # TLS certificates for Gemini protocol
-      - crossyword-certs:/app/certs
     environment:
       - CROSSYWORD_DATABASE_URL=${CROSSYWORD_DATABASE_URL:-sqlite:////app/data/crossyword.db}
       - CROSSYWORD_PUZZLES_DIR=${CROSSYWORD_PUZZLES_DIR:-/app/puzzles}
@@ -31,11 +24,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-volumes:
-  crossyword-data:
-    driver: local
-  crossyword-puzzles:
-    driver: local
-  crossyword-certs:
-    driver: local
