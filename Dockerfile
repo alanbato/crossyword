@@ -25,6 +25,10 @@ COPY src/ src/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev
 
+# Copy Alembic configuration and migrations
+COPY alembic.ini ./
+COPY alembic/ alembic/
+
 
 # --- Runtime stage ---
 FROM python:3.13-slim-bookworm AS runtime
@@ -38,6 +42,8 @@ RUN groupadd --gid 1000 crossyword && \
 # Copy the virtual environment and source from builder
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/src /app/src
+COPY --from=builder /app/alembic.ini /app/alembic.ini
+COPY --from=builder /app/alembic /app/alembic
 
 # Set up paths
 ENV PATH="/app/.venv/bin:$PATH"
