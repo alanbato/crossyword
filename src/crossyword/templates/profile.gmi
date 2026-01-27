@@ -8,6 +8,14 @@ Username: {{ display_name }}
 => /profile/name Set Username
 {% endif %}
 
+{% if use_colors %}
+Grid Colors: Enabled
+=> /profile/colors Disable Colors
+{% else %}
+Grid Colors: Disabled
+=> /profile/colors Enable Colors
+{% endif %}
+
 ## Statistics
 
 Puzzles Completed: {{ completed_count }}

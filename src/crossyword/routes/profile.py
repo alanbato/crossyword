@@ -2,7 +2,7 @@
 
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, func, select
-from xitzin import Request, Xitzin
+from xitzin import Redirect, Request, Xitzin
 from xitzin.auth import get_identity, require_certificate
 
 from ..models import CompletedPuzzle, PlayerProgress
@@ -57,6 +57,7 @@ def register_routes(app: Xitzin) -> None:
                 "profile.gmi",
                 short_id=identity.short_id,
                 display_name=user.display_name,
+                use_colors=user.use_colors,
                 completed_count=completed_count,
                 in_progress_count=in_progress_count,
                 best_time=format_time(int(best_time)) if best_time else None,
@@ -93,3 +94,16 @@ def register_routes(app: Xitzin) -> None:
                 )
 
             return app.template("name_updated.gmi", display_name=user.display_name)
+
+    @app.gemini("/profile/colors")
+    @require_certificate
+    def toggle_colors(request: Request):
+        """Toggle ANSI color support for grid rendering."""
+        identity = get_identity(request)
+
+        with Session(request.app.state.engine) as session:
+            user = get_or_create_user(session, identity.fingerprint)
+            user.use_colors = not user.use_colors
+            session.commit()
+
+        return Redirect("/profile")

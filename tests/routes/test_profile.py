@@ -1,6 +1,6 @@
 """Integration tests for profile routes."""
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from crossyword.models import User
 
@@ -121,3 +121,95 @@ class TestSetDisplayName:
 
         assert response.is_success
         assert "taken" in response.body.lower()
+
+
+class TestToggleColors:
+    """Tests for /profile/colors route."""
+
+    def test_requires_certificate(self, client):
+        """Toggle colors route requires client certificate."""
+        response = client.get("/profile/colors")
+
+        assert response.is_certificate_required
+
+    def test_toggle_on(self, client):
+        """Can toggle colors on."""
+        with Session(client._app.state.engine) as session:
+            user = User(
+                fingerprint="toggle-on-user",
+                display_name="ToggleOnUser",
+                use_colors=False,
+            )
+            session.add(user)
+            session.commit()
+
+        auth = client.with_certificate("toggle-on-user")
+        response = auth.get("/profile/colors")
+
+        # Should redirect to profile
+        assert response.is_redirect
+
+        # Verify database was updated
+        with Session(client._app.state.engine) as session:
+            user = session.exec(
+                select(User).where(User.fingerprint == "toggle-on-user")
+            ).first()
+            assert user.use_colors is True
+
+    def test_toggle_off(self, client):
+        """Can toggle colors off."""
+        with Session(client._app.state.engine) as session:
+            user = User(
+                fingerprint="toggle-off-user",
+                display_name="ToggleOffUser",
+                use_colors=True,
+            )
+            session.add(user)
+            session.commit()
+
+        auth = client.with_certificate("toggle-off-user")
+        response = auth.get("/profile/colors")
+
+        # Should redirect to profile
+        assert response.is_redirect
+
+        # Verify database was updated
+        with Session(client._app.state.engine) as session:
+            user = session.exec(
+                select(User).where(User.fingerprint == "toggle-off-user")
+            ).first()
+            assert user.use_colors is False
+
+    def test_profile_shows_color_status(self, client):
+        """Profile page shows current color setting."""
+        with Session(client._app.state.engine) as session:
+            user = User(
+                fingerprint="color-status-user",
+                display_name="ColorStatusUser",
+                use_colors=False,
+            )
+            session.add(user)
+            session.commit()
+
+        auth = client.with_certificate("color-status-user")
+        response = auth.get("/profile")
+
+        assert response.is_success
+        assert "Enable Colors" in response.body or "colors" in response.body.lower()
+
+    def test_profile_shows_disable_when_enabled(self, client):
+        """Profile shows 'Disable Colors' when colors are on."""
+        with Session(client._app.state.engine) as session:
+            user = User(
+                fingerprint="disable-link-user",
+                display_name="DisableLinkUser",
+                use_colors=True,
+            )
+            session.add(user)
+            session.commit()
+
+        auth = client.with_certificate("disable-link-user")
+        response = auth.get("/profile")
+
+        assert response.is_success
+        assert "Disable Colors" in response.body

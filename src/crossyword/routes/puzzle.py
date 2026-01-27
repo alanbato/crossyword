@@ -9,7 +9,7 @@ from xitzin.auth import get_identity, require_certificate
 from ..daily import get_or_assign_todays_puzzle, get_puzzle_for_date
 from ..game import GameState
 from ..models import CompletedPuzzle, DailyPuzzle
-from ..rendering import render_clue_context, render_grid
+from ..rendering import apply_colors, render_clue_context, render_grid
 from ..users import get_or_create_user, requires_registration
 
 
@@ -110,6 +110,8 @@ def register_routes(app: Xitzin) -> None:
     ):
         """Render the main puzzle page."""
         grid = render_grid(game.puz_data, "".join(game.current_fill))
+        if game.user.use_colors:
+            grid = apply_colors(grid)
 
         # Use crossyword_date if provided, otherwise use date_str (for archived),
         # otherwise use today's date (for today's puzzle)

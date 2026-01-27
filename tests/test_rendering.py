@@ -3,6 +3,13 @@
 import puz
 
 from crossyword.rendering import (
+    ANSI_BLACK,
+    ANSI_BORDER,
+    ANSI_LETTER,
+    ANSI_NUMBER,
+    ANSI_RESET,
+    BLACK_SQUARE,
+    apply_colors,
     format_time,
     render_clue_context,
     render_grid,
@@ -54,10 +61,10 @@ class TestRenderGrid:
         assert "-" in grid
 
     def test_grid_has_black_squares(self, puz_data: puz.Puzzle, empty_fill: str):
-        """Black cells render as ####."""
+        """Black cells render as ████."""
         grid = render_grid(puz_data, empty_fill)
 
-        assert "####" in grid
+        assert BLACK_SQUARE * 4 in grid
 
     def test_grid_has_clue_numbers(self, puz_data: puz.Puzzle, empty_fill: str):
         """Grid has superscript numbers for clue markers."""
@@ -237,6 +244,88 @@ class TestRenderLogo:
         assert "-" in logo
 
     def test_has_black_squares(self):
-        """Logo has black squares (####)."""
+        """Logo has black squares (████)."""
         logo = render_logo()
-        assert "####" in logo
+        assert BLACK_SQUARE * 4 in logo
+
+
+class TestApplyColors:
+    """Tests for apply_colors function."""
+
+    def test_empty_string_returns_empty(self):
+        """Empty string returns empty string."""
+        assert apply_colors("") == ""
+
+    def test_borders_get_cyan(self):
+        """Border characters (+, -, |) get cyan color."""
+        result = apply_colors("+")
+        assert ANSI_BORDER in result
+        assert ANSI_RESET in result
+        assert "+" in result
+
+    def test_letters_get_green(self):
+        """Uppercase letters get green color."""
+        result = apply_colors("A")
+        assert ANSI_LETTER in result
+        assert ANSI_RESET in result
+        assert "A" in result
+
+    def test_black_squares_get_gray(self):
+        """Black square characters (█) get gray color."""
+        result = apply_colors(BLACK_SQUARE)
+        assert ANSI_BLACK in result
+        assert ANSI_RESET in result
+        assert BLACK_SQUARE in result
+
+    def test_superscript_numbers_get_yellow(self):
+        """Superscript digits get yellow color."""
+        result = apply_colors("¹")
+        assert ANSI_NUMBER in result
+        assert ANSI_RESET in result
+        assert "¹" in result
+
+    def test_uncolored_chars_unchanged(self):
+        """Spaces, newlines, and other chars are not wrapped."""
+        result = apply_colors(" \n")
+        assert ANSI_BORDER not in result
+        assert ANSI_LETTER not in result
+        assert ANSI_BLACK not in result
+        assert ANSI_NUMBER not in result
+        assert " \n" == result
+
+    def test_batches_consecutive_same_color(self):
+        """Consecutive same-colored chars are batched together."""
+        result = apply_colors(BLACK_SQUARE * 4)
+        # Should have only one ANSI_BLACK and one ANSI_RESET (batched)
+        assert result.count(ANSI_BLACK) == 1
+        assert result.count(ANSI_RESET) == 1
+        assert BLACK_SQUARE * 4 in result
+
+    def test_different_colors_separated(self):
+        """Different colored chars each get their own wrapper."""
+        result = apply_colors(f"+A{BLACK_SQUARE}")
+        # Should have 3 different color codes
+        assert ANSI_BORDER in result
+        assert ANSI_LETTER in result
+        assert ANSI_BLACK in result
+        assert result.count(ANSI_RESET) == 3
+
+    def test_grid_structure_preserved(self):
+        """Grid structure is preserved when colors applied."""
+        grid = "+----+\n|A   |\n+----+"
+        result = apply_colors(grid)
+        # Verify the content is preserved (stripping ANSI codes)
+        stripped = result
+        for code in [ANSI_BORDER, ANSI_LETTER, ANSI_BLACK, ANSI_NUMBER, ANSI_RESET]:
+            stripped = stripped.replace(code, "")
+        assert stripped == grid
+
+    def test_full_grid_has_all_colors(self, puz_data, empty_fill):
+        """A rendered grid with colors contains all color types."""
+        grid = render_grid(puz_data, puz_data.solution)
+        result = apply_colors(grid)
+
+        assert ANSI_BORDER in result  # Borders
+        assert ANSI_LETTER in result  # Letters
+        assert ANSI_BLACK in result  # Black squares
+        assert ANSI_NUMBER in result  # Clue numbers

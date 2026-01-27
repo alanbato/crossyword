@@ -13,6 +13,7 @@ class User(SQLModel, table=True):
     display_name: str | None = Field(default=None, unique=True, index=True)
     created_at: dt.datetime = Field(default_factory=dt.datetime.utcnow)
     last_seen: dt.datetime = Field(default_factory=dt.datetime.utcnow)
+    use_colors: bool = Field(default=False)
 
     progress: list["PlayerProgress"] = Relationship(back_populates="user")
     completed_puzzles: list["CompletedPuzzle"] = Relationship(back_populates="user")

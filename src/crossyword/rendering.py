@@ -3,6 +3,17 @@
 import puz
 
 SUPERSCRIPT_DIGITS = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
+SUPERSCRIPT_CHARS = set("⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+# Black square character (Full Block)
+BLACK_SQUARE = "▒"
+
+# ANSI color codes
+ANSI_RESET = "\033[0m"
+ANSI_BORDER = "\033[36m"  # Cyan for borders (+, -, |)
+ANSI_LETTER = "\033[32m"  # Green for filled letters
+ANSI_NUMBER = "\033[33m"  # Yellow for clue numbers (superscripts)
+ANSI_BLACK = "\033[36m"  # Cyan for black squares (█)
 
 
 def to_superscript(num: int | str) -> str:
@@ -18,7 +29,7 @@ def render_grid(puzzle: puz.Puzzle, current_fill: str) -> str:
     +----+----+----+----+----+
     |¹H  |²E  |³L  | L  |⁴O  |
     +----+----+----+----+----+
-    |⁵   |####|####|####|⁶   |
+    |⁵   |████|████|████|⁶   |
     +----+----+----+----+----+
     """
     width = puzzle.width
@@ -44,7 +55,7 @@ def render_grid(puzzle: puz.Puzzle, current_fill: str) -> str:
             cell = current_fill[idx] if idx < len(current_fill) else " "
 
             if cell == ".":
-                row_cells.append("#" * cell_width)
+                row_cells.append(BLACK_SQUARE * cell_width)
             else:
                 num = number_map.get(idx, "")
                 letter = cell if cell not in ["-", " "] else " "
@@ -87,7 +98,7 @@ def render_clue_context(
         if char in ["-", " "]:
             letters.append("_")
         elif char == ".":
-            letters.append("#")
+            letters.append(BLACK_SQUARE)
         else:
             letters.append(char)
 
@@ -128,7 +139,7 @@ def render_logo() -> str:
         row_cells = []
         for cell in row:
             if cell == ".":
-                row_cells.append("#" * cell_width)
+                row_cells.append(BLACK_SQUARE * cell_width)
             else:
                 cell_str = f" {cell}  "
                 row_cells.append(cell_str)
@@ -150,3 +161,59 @@ def format_time(seconds: int) -> str:
         hours = seconds // 3600
         minutes = (seconds % 3600) // 60
         return f"{hours}h {minutes}m"
+
+
+def _get_char_color(char: str) -> str | None:
+    """Return the ANSI color code for a character, or None if uncolored."""
+    if char in "+-|":
+        return ANSI_BORDER
+    elif char == BLACK_SQUARE:
+        return ANSI_BLACK
+    elif char.isupper():
+        return ANSI_LETTER
+    elif char in SUPERSCRIPT_CHARS:
+        return ANSI_NUMBER
+    return None
+
+
+def apply_colors(ascii_art: str) -> str:
+    """Apply ANSI color codes to ASCII crossword art.
+
+    Colors:
+    - Borders (+, -, |): Cyan
+    - Letters (A-Z): Green
+    - Clue numbers (superscript digits): Yellow
+    - Black squares (█): Gray
+
+    Batches consecutive same-colored characters for efficiency.
+    """
+    if not ascii_art:
+        return ascii_art
+
+    result = []
+    current_color: str | None = None
+    buffer: list[str] = []
+
+    for char in ascii_art:
+        color = _get_char_color(char)
+
+        if color != current_color:
+            # Flush buffer when color changes
+            if buffer:
+                if current_color:
+                    result.append(f"{current_color}{''.join(buffer)}{ANSI_RESET}")
+                else:
+                    result.extend(buffer)
+                buffer = []
+            current_color = color
+
+        buffer.append(char)
+
+    # Flush remaining buffer
+    if buffer:
+        if current_color:
+            result.append(f"{current_color}{''.join(buffer)}{ANSI_RESET}")
+        else:
+            result.extend(buffer)
+
+    return "".join(result)
