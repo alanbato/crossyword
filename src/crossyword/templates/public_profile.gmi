@@ -1,0 +1,30 @@
+# {{ display_name }}'s Profile
+
+{% if bio %}
+Bio: {{ bio }}
+{% endif %}
+
+{% if link %}
+=> {{ link }} {{ display_name }}'s Link
+{% endif %}
+
+## Statistics
+
+Puzzles Completed: {{ completed_count }}
+{% if best_time %}
+Best Time: {{ best_time }}
+{% endif %}
+{% if avg_time %}
+Average Time: {{ avg_time }}
+{% endif %}
+
+{% if recent %}
+## Recent Completions
+
+{% for entry in recent %}
+* {{ entry.date }} - {{ entry.time }} - {{ entry.title }}
+{% endfor %}
+{% endif %}
+
+=> /leaderboard Leaderboard
+=> / Home

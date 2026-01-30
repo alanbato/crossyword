@@ -1,0 +1,10 @@
+# Bio Updated
+
+{% if bio %}
+Your bio is now: {{ bio }}
+{% else %}
+Your bio has been cleared.
+{% endif %}
+
+=> /profile Back to Profile
+=> / Home

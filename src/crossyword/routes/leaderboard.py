@@ -34,6 +34,7 @@ def get_leaderboard_entries(
     return [
         {
             "name": user.display_name or user.fingerprint[:8],
+            "username": user.display_name,
             "time": format_time(completed.completion_time_seconds),
         }
         for completed, user in session.exec(statement).all()

@@ -1,0 +1,10 @@
+# Link Updated
+
+{% if link %}
+Your link is now: {{ link }}
+{% else %}
+Your link has been cleared.
+{% endif %}
+
+=> /profile Back to Profile
+=> / Home

@@ -11,6 +11,8 @@ class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     fingerprint: str = Field(unique=True, index=True)
     display_name: str | None = Field(default=None, unique=True, index=True)
+    bio: str | None = Field(default=None)
+    link: str | None = Field(default=None)
     created_at: dt.datetime = Field(default_factory=dt.datetime.utcnow)
     last_seen: dt.datetime = Field(default_factory=dt.datetime.utcnow)
     use_colors: bool = Field(default=False)

@@ -8,6 +8,20 @@ Username: {{ display_name }}
 => /profile/name Set Username
 {% endif %}
 
+{% if bio %}
+Bio: {{ bio }}
+=> /profile/bio Edit Bio
+{% else %}
+=> /profile/bio Add Bio
+{% endif %}
+
+{% if link %}
+=> {{ link }} Your Link
+=> /profile/link Edit Link
+{% else %}
+=> /profile/link Add Link
+{% endif %}
+
 {% if use_colors %}
 Grid Colors: Enabled
 => /profile/colors Disable Colors
@@ -31,7 +45,7 @@ Average Time: {{ avg_time }}
 ## Recent Completions
 
 {% for entry in recent %}
-* {{ entry.date }} - {{ entry.time }}
+* {{ entry.date }} - {{ entry.time }} - {{ entry.title }}
 {% endfor %}
 {% endif %}
 
