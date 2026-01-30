@@ -13,24 +13,35 @@ from ..rendering import format_time
 from ..users import get_or_create_user
 
 
+def get_leaderboard_entries(
+    session: Session, puzzle_id: int, limit: int | None = None
+) -> list[dict]:
+    """Get leaderboard entries for a puzzle.
+
+    Args:
+        session: Database session
+        puzzle_id: ID of the puzzle to get leaderboard for
+        limit: Optional max number of entries to return
+    """
+    statement = (
+        select(CompletedPuzzle, User)
+        .join(User)
+        .where(CompletedPuzzle.puzzle_id == puzzle_id)
+        .order_by(CompletedPuzzle.completion_time_seconds)
+    )
+    if limit:
+        statement = statement.limit(limit)
+    return [
+        {
+            "name": user.display_name or user.fingerprint[:8],
+            "time": format_time(completed.completion_time_seconds),
+        }
+        for completed, user in session.exec(statement).all()
+    ]
+
+
 def register_routes(app: Xitzin) -> None:
     """Register leaderboard routes."""
-
-    def get_leaderboard_entries(session: Session, puzzle_id: int) -> list[dict]:
-        """Get leaderboard entries for a puzzle."""
-        statement = (
-            select(CompletedPuzzle, User)
-            .join(User)
-            .where(CompletedPuzzle.puzzle_id == puzzle_id)
-            .order_by(CompletedPuzzle.completion_time_seconds)
-        )
-        return [
-            {
-                "name": user.display_name or user.fingerprint[:8],
-                "time": format_time(completed.completion_time_seconds),
-            }
-            for completed, user in session.exec(statement).all()
-        ]
 
     @app.gemini("/leaderboard")
     @optional_certificate

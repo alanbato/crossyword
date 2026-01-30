@@ -21,12 +21,30 @@ Most Gemini clients can generate one for you.
 => /puzzle Play Today's Puzzle
 {% endif %}
 
-=> /leaderboard Today's Leaderboard
+## Today's Leaderboard
+
+{% if leaderboard %}
+{% for entry in leaderboard %}
+{{ loop.index }}. {{ entry.name }} - {{ entry.time }}
+{% endfor %}
+=> /leaderboard See Full Leaderboard
+{% else %}
+No completions yet. Be the first to finish today's puzzle!
+{% endif %}
+
+## Navigation
+
 => /archive Puzzle Archive
 => /help How to Play
 {% if user %}
 => /profile Your Profile
 {% endif %}
+
+## Recent Updates
+
+* Pause/Resume - Leave the puzzle anytime, your timer pauses automatically
+* Colored Grid - Enable ANSI colors in your profile for a vibrant display
+* Puzzle Archive - Play previous puzzles and compete on historical leaderboards
 
 ---
 A Xitzin-powered Gemini capsule
