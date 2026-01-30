@@ -16,9 +16,10 @@ Your puzzle is saved and the timer is paused. The grid is hidden while paused to
 
 {% else %}
 {% if puzzle.author %}by {{ puzzle.author }}
-{% endif -%}
-{% if puzzle.source %}Source: {{ puzzle.source }}{% if puzzle.original_date %} ({{ puzzle.original_date.strftime('%B %d, %Y') }}){% endif %}
-{% endif -%}
+{% endif %}
+{%- if puzzle.source %}
+Source: {{ puzzle.source }}{% if puzzle.original_date %} ({{ puzzle.original_date.strftime('%B %d, %Y') }}){% endif %}
+{% endif %}
 Crossyword Date: {{ crossyword_date }}
 
 ```crossword

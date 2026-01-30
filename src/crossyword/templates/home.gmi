@@ -39,6 +39,7 @@ No completions yet. Be the first to finish today's puzzle!
 {% if user %}
 => /profile Your Profile
 {% endif %}
+=> /about About Crossyword
 
 ## Recent Updates
 
@@ -47,4 +48,4 @@ No completions yet. Be the first to finish today's puzzle!
 * Puzzle Archive - Play previous puzzles and compete on historical leaderboards
 
 ---
-A Xitzin-powered Gemini capsule
+=> /about About this capsule

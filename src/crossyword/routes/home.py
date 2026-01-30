@@ -64,3 +64,8 @@ def register_routes(app: Xitzin) -> None:
     def help_page(request: Request):
         """How to play instructions."""
         return app.template("help.gmi")
+
+    @app.gemini("/about")
+    def about_page(request: Request):
+        """About page with credits and project info."""
+        return app.template("about.gmi")

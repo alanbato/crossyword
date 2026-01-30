@@ -1,0 +1,31 @@
+# About Crossyword
+
+Crossyword is a daily crossword puzzle game for the Gemini protocol.
+
+## Author
+
+Created by Alan Velasco (alanbato) for the Gemini community
+
+## Source Code
+
+=> https://github.com/alanbato/crossyword GitHub Repository
+
+Issues and Contributions welcome.
+
+## Built With
+
+* Python - Programming language
+* Xitzin - Gemini protocol application framework
+* SQLModel - Database ORM
+* Jinja2 - Template engine
+* puz - Crossword puzzle file parser
+
+## The Gemini Protocol
+
+Gemini is a lightweight internet protocol designed for simplicity and privacy. It sits between Gopher and the Web in terms of complexity, focusing on text-based content without tracking or JavaScript.
+
+=> gemini://geminiprotocol.net/ Learn more about Gemini
+
+---
+
+=> / Home
