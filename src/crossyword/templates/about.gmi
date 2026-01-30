@@ -14,11 +14,11 @@ Issues and Contributions welcome.
 
 ## Built With
 
-* Python - Programming language
-* Xitzin - Gemini protocol application framework
-* SQLModel - Database ORM
-* Jinja2 - Template engine
-* puz - Crossword puzzle file parser
+=> https://github.com/python/cpython Python - Programming language
+=> https://github.com/alanbato/xitzin Xitzin - Gemini protocol application framework
+=> https://github.com/fastapi/sqlmodel SQLModel - Database ORM
+=> https://github.com/pallets/jinja Jinja2 - Template engine
+=> https://github.com/alexdej/puzpy puz - Crossword puzzle file parser
 
 ## The Gemini Protocol
 
