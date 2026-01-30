@@ -5,7 +5,10 @@ import re
 
 from sqlmodel import Session, select
 
+from .logging import get_logger
 from .models import User
+
+logger = get_logger(__name__)
 
 
 def validate_username(username: str) -> tuple[bool, str]:
@@ -39,9 +42,11 @@ def get_or_create_user(session: Session, fingerprint: str) -> User:
 
     if user:
         user.last_seen = dt.datetime.utcnow()
+        logger.debug("user_accessed", fingerprint=fingerprint)
     else:
         user = User(fingerprint=fingerprint)
         session.add(user)
+        logger.info("user_created", fingerprint=fingerprint)
 
     session.commit()
     session.refresh(user)

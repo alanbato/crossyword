@@ -5,7 +5,7 @@ import datetime as dt
 from freezegun import freeze_time
 from sqlmodel import Session
 
-from crossyword.models import CompletedPuzzle, DailyPuzzle, Puzzle, User
+from crossyword.models import CompletedPuzzle, DailyPuzzle, PlayerProgress, Puzzle, User
 
 
 class TestTodayLeaderboard:
@@ -96,3 +96,45 @@ class TestHistoricalLeaderboard:
         response = client.get("/leaderboard/2025-01-10")
 
         assert response.is_success
+
+
+class TestLeaderboardAutoPause:
+    """Tests for auto-pause when navigating to leaderboard."""
+
+    def test_leaderboard_auto_pauses_active_puzzle(self, auth_client):
+        """Navigating to leaderboard auto-pauses active puzzles."""
+        # First visit puzzle to create active progress
+        auth_client.get("/puzzle")
+
+        # Verify puzzle is not paused
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress is not None
+            assert progress.is_paused is False
+
+        # Navigate to leaderboard
+        auth_client.get("/leaderboard")
+
+        # Verify puzzle is now paused
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress.is_paused is True
+
+    def test_historical_leaderboard_auto_pauses(self, auth_client):
+        """Navigating to historical leaderboard auto-pauses active puzzles."""
+        # First visit puzzle to create active progress
+        auth_client.get("/puzzle")
+
+        # Navigate to historical leaderboard
+        auth_client.get("/leaderboard/2025-01-10")
+
+        # Verify puzzle is now paused
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress.is_paused is True

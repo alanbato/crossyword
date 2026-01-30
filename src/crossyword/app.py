@@ -8,7 +8,10 @@ from sqlmodel import SQLModel, Session, create_engine
 from xitzin import Xitzin
 
 from .config import Config
+from .logging import get_logger
 from .puzzle_import import import_puzzles
+
+logger = get_logger(__name__)
 
 
 def stamp_new_database(engine, database_url: str) -> None:
@@ -87,16 +90,21 @@ def create_app(config: Config | None = None) -> Xitzin:
     @app.on_startup
     async def startup():
         """Initialize database and import puzzles."""
+        logger.debug("database_migrations_starting")
         # Run migrations for existing databases first
         run_migrations(engine, config.database_url)
         # Create any missing tables (for new databases or new models)
         SQLModel.metadata.create_all(engine)
         # Stamp new databases so future migrations work correctly
         stamp_new_database(engine, config.database_url)
+        logger.debug("database_setup_complete")
+
         with Session(engine) as session:
             imported = import_puzzles(session, config.puzzles_dir)
             if imported:
-                print(f"Imported {len(imported)} puzzle(s)")
+                logger.info("puzzles_imported", count=len(imported))
+
+        logger.info("startup_complete")
 
     from .routes import home, leaderboard, profile, puzzle
 

@@ -179,6 +179,31 @@ class TestArchive:
 
         assert response.is_success
 
+    def test_archive_auto_pauses_active_puzzle(self, auth_client):
+        """Navigating to archive auto-pauses active puzzles."""
+        from crossyword.models import PlayerProgress
+
+        # First visit puzzle to create active progress
+        auth_client.get("/puzzle")
+
+        # Verify puzzle is not paused
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress is not None
+            assert progress.is_paused is False
+
+        # Navigate to archive
+        auth_client.get("/archive")
+
+        # Verify puzzle is now paused
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress.is_paused is True
+
 
 class TestArchivedPuzzle:
     """Tests for /puzzle/{date_str} routes."""
@@ -222,3 +247,277 @@ class TestArchivedPuzzle:
 
         assert response.is_success
         assert "format" in response.body.lower() or "invalid" in response.body.lower()
+
+
+class TestPausePuzzle:
+    """Tests for /puzzle/pause route."""
+
+    def test_requires_certificate(self, client):
+        """Pause route requires client certificate."""
+        response = client.get("/puzzle/pause")
+
+        assert response.is_certificate_required
+
+    def test_pause_redirects_to_puzzle(self, auth_client):
+        """Pause route redirects back to puzzle page."""
+        # First visit puzzle to create progress
+        auth_client.get("/puzzle")
+
+        response = auth_client.get("/puzzle/pause")
+
+        assert response.is_redirect
+        assert "/puzzle" in response.redirect_url
+
+    def test_pause_sets_paused_state(self, auth_client):
+        """Pause route sets the paused state."""
+        from crossyword.models import PlayerProgress
+
+        # First visit puzzle to create progress
+        auth_client.get("/puzzle")
+
+        # Pause
+        auth_client.get("/puzzle/pause")
+
+        # Check the paused state in database
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress is not None
+            assert progress.is_paused is True
+
+    def test_paused_puzzle_shows_paused_message(self, auth_client):
+        """Paused puzzle shows paused message instead of grid."""
+        # Visit puzzle and pause
+        auth_client.get("/puzzle")
+        auth_client.get("/puzzle/pause")
+
+        # Visit puzzle again
+        response = auth_client.get("/puzzle")
+
+        assert response.is_success
+        assert "paused" in response.body.lower()
+
+    def test_paused_puzzle_hides_grid(self, auth_client):
+        """Paused puzzle hides the grid."""
+        # Visit puzzle and pause
+        auth_client.get("/puzzle")
+        auth_client.get("/puzzle/pause")
+
+        # Visit puzzle again - grid should be hidden
+        response = auth_client.get("/puzzle")
+
+        assert response.is_success
+        # Grid uses +----+ pattern, which should not be present
+        assert "+----+" not in response.body
+
+    def test_paused_puzzle_shows_resume_link(self, auth_client):
+        """Paused puzzle shows resume link."""
+        # Visit puzzle and pause
+        auth_client.get("/puzzle")
+        auth_client.get("/puzzle/pause")
+
+        # Visit puzzle again
+        response = auth_client.get("/puzzle")
+
+        assert response.is_success
+        assert (
+            "/puzzle/resume" in response.body.lower()
+            or "resume" in response.body.lower()
+        )
+
+    def test_active_puzzle_shows_pause_link(self, auth_client):
+        """Active puzzle shows pause link."""
+        response = auth_client.get("/puzzle")
+
+        assert response.is_success
+        assert (
+            "/puzzle/pause" in response.body.lower() or "pause" in response.body.lower()
+        )
+
+
+class TestResumePuzzle:
+    """Tests for /puzzle/resume route."""
+
+    def test_requires_certificate(self, client):
+        """Resume route requires client certificate."""
+        response = client.get("/puzzle/resume")
+
+        assert response.is_certificate_required
+
+    def test_resume_redirects_to_puzzle(self, auth_client):
+        """Resume route redirects back to puzzle page."""
+        # First visit puzzle and pause
+        auth_client.get("/puzzle")
+        auth_client.get("/puzzle/pause")
+
+        response = auth_client.get("/puzzle/resume")
+
+        assert response.is_redirect
+        assert "/puzzle" in response.redirect_url
+
+    def test_resume_clears_paused_state(self, auth_client):
+        """Resume route clears the paused state."""
+        from crossyword.models import PlayerProgress
+
+        # Visit puzzle, pause, then resume
+        auth_client.get("/puzzle")
+        auth_client.get("/puzzle/pause")
+        auth_client.get("/puzzle/resume")
+
+        # Check the paused state in database
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress is not None
+            assert progress.is_paused is False
+
+    def test_resumed_puzzle_shows_grid(self, auth_client):
+        """Resumed puzzle shows the grid again."""
+        # Visit puzzle, pause, then resume
+        auth_client.get("/puzzle")
+        auth_client.get("/puzzle/pause")
+        auth_client.get("/puzzle/resume")
+
+        # Visit puzzle again
+        response = auth_client.get("/puzzle")
+
+        assert response.is_success
+        # Grid should be visible again
+        assert "+----+" in response.body or "+" in response.body
+
+
+class TestPauseGuards:
+    """Tests for pause guards on other routes."""
+
+    def test_clue_redirects_when_paused(self, auth_client):
+        """View clue redirects to puzzle when paused."""
+        # Visit puzzle and pause
+        auth_client.get("/puzzle")
+        auth_client.get("/puzzle/pause")
+
+        # Try to view clue
+        response = auth_client.get("/puzzle/clue/across/1")
+
+        assert response.is_redirect
+        assert "/puzzle" in response.redirect_url
+
+    def test_submit_answer_redirects_when_paused(self, auth_client):
+        """Submit answer redirects to puzzle when paused."""
+        # Visit puzzle and pause
+        auth_client.get("/puzzle")
+        auth_client.get("/puzzle/pause")
+
+        # Try to submit answer (need to use get_input to submit)
+        response = auth_client.get_input("/puzzle/answer/across/1", "TESTANSWER")
+
+        assert response.is_redirect
+        assert "/puzzle" in response.redirect_url
+
+    def test_check_redirects_when_paused(self, auth_client):
+        """Check puzzle redirects to puzzle when paused."""
+        # Visit puzzle and pause
+        auth_client.get("/puzzle")
+        auth_client.get("/puzzle/pause")
+
+        # Try to check puzzle
+        response = auth_client.get("/puzzle/check")
+
+        assert response.is_redirect
+        assert "/puzzle" in response.redirect_url
+
+    def test_clear_redirects_when_paused(self, auth_client):
+        """Clear answer redirects to puzzle when paused."""
+        # Visit puzzle and pause
+        auth_client.get("/puzzle")
+        auth_client.get("/puzzle/pause")
+
+        # Try to clear answer
+        response = auth_client.get("/puzzle/clear/across/1")
+
+        assert response.is_redirect
+        assert "/puzzle" in response.redirect_url
+
+    def test_can_continue_after_resume(self, auth_client):
+        """Can continue solving puzzle after resume."""
+        # Visit puzzle, submit answer, pause, resume, submit another answer
+        auth_client.get("/puzzle")
+        auth_client.get_input("/puzzle/answer/across/1", "TESTANSWER")
+        auth_client.get("/puzzle/pause")
+        auth_client.get("/puzzle/resume")
+
+        # Should be able to view clue now
+        response = auth_client.get("/puzzle/clue/across/1")
+
+        assert response.is_success
+        assert "current" in response.body.lower() or "_" in response.body
+
+
+class TestArchivedPuzzlePause:
+    """Tests for pause/resume on archived puzzles."""
+
+    @freeze_time("2025-01-15")
+    def test_archived_pause_route(self, auth_client):
+        """Can pause archived puzzle."""
+        # First assign a puzzle to yesterday
+        with Session(auth_client._app.state.engine) as session:
+            from crossyword.models import Puzzle
+
+            puzzle = session.exec(__import__("sqlmodel").select(Puzzle)).first()
+            if puzzle:
+                daily = DailyPuzzle(date=dt.date(2025, 1, 14), puzzle_id=puzzle.id)
+                session.add(daily)
+                session.commit()
+
+        # Visit archived puzzle and pause
+        auth_client.get("/puzzle/2025-01-14")
+        response = auth_client.get("/puzzle/2025-01-14/pause")
+
+        assert response.is_redirect
+        assert "2025-01-14" in response.redirect_url
+
+    @freeze_time("2025-01-15")
+    def test_archived_resume_route(self, auth_client):
+        """Can resume archived puzzle."""
+        # First assign a puzzle to yesterday
+        with Session(auth_client._app.state.engine) as session:
+            from crossyword.models import Puzzle
+
+            puzzle = session.exec(__import__("sqlmodel").select(Puzzle)).first()
+            if puzzle:
+                daily = DailyPuzzle(date=dt.date(2025, 1, 14), puzzle_id=puzzle.id)
+                session.add(daily)
+                session.commit()
+
+        # Visit archived puzzle, pause, and resume
+        auth_client.get("/puzzle/2025-01-14")
+        auth_client.get("/puzzle/2025-01-14/pause")
+        response = auth_client.get("/puzzle/2025-01-14/resume")
+
+        assert response.is_redirect
+        assert "2025-01-14" in response.redirect_url
+
+    @freeze_time("2025-01-15")
+    def test_archived_paused_hides_grid(self, auth_client):
+        """Paused archived puzzle hides grid."""
+        # First assign a puzzle to yesterday
+        with Session(auth_client._app.state.engine) as session:
+            from crossyword.models import Puzzle
+
+            puzzle = session.exec(__import__("sqlmodel").select(Puzzle)).first()
+            if puzzle:
+                daily = DailyPuzzle(date=dt.date(2025, 1, 14), puzzle_id=puzzle.id)
+                session.add(daily)
+                session.commit()
+
+        # Visit archived puzzle and pause
+        auth_client.get("/puzzle/2025-01-14")
+        auth_client.get("/puzzle/2025-01-14/pause")
+
+        # Visit again
+        response = auth_client.get("/puzzle/2025-01-14")
+
+        assert response.is_success
+        assert "paused" in response.body.lower()
+        assert "+----+" not in response.body

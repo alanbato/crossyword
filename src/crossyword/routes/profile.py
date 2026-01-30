@@ -5,6 +5,7 @@ from sqlmodel import Session, func, select
 from xitzin import Redirect, Request, Xitzin
 from xitzin.auth import get_identity, require_certificate
 
+from ..game import auto_pause_active_puzzles
 from ..models import CompletedPuzzle, PlayerProgress
 from ..rendering import format_time
 from ..users import get_or_create_user, validate_username
@@ -21,6 +22,9 @@ def register_routes(app: Xitzin) -> None:
 
         with Session(request.app.state.engine) as session:
             user = get_or_create_user(session, identity.fingerprint)
+
+            # Auto-pause any active puzzles when navigating away
+            auto_pause_active_puzzles(session, user.id)
 
             # Combine aggregations into single query
             stats = session.exec(
@@ -82,6 +86,10 @@ def register_routes(app: Xitzin) -> None:
 
         with Session(request.app.state.engine) as session:
             user = get_or_create_user(session, identity.fingerprint)
+
+            # Auto-pause any active puzzles when navigating away
+            auto_pause_active_puzzles(session, user.id)
+
             user.display_name = username
             try:
                 session.commit()
@@ -103,6 +111,10 @@ def register_routes(app: Xitzin) -> None:
 
         with Session(request.app.state.engine) as session:
             user = get_or_create_user(session, identity.fingerprint)
+
+            # Auto-pause any active puzzles when navigating away
+            auto_pause_active_puzzles(session, user.id)
+
             user.use_colors = not user.use_colors
             session.commit()
 

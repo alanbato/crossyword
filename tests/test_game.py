@@ -1,11 +1,12 @@
 """Tests for crossyword.game module - GameState class."""
 
+import datetime as dt
 import json
 
 import puz
 from sqlmodel import Session, select
 
-from crossyword.game import GameState
+from crossyword.game import GameState, auto_pause_active_puzzles
 from crossyword.models import CompletedPuzzle, PlayerProgress, Puzzle, User
 
 
@@ -722,3 +723,658 @@ class TestGameStateLoadOrCreate:
         assert game.progress == test_progress
         assert game.current_fill[0] == "X"
         assert "1A" in game.solved_clues
+
+
+class TestGameStatePause:
+    """Tests for pause/resume functionality."""
+
+    def test_is_paused_false_without_progress(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+    ):
+        """is_paused returns False when no progress exists."""
+        game = GameState(db_session, test_user, test_puzzle, puz_data, progress=None)
+
+        assert game.is_paused is False
+
+    def test_is_paused_reflects_progress_state(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """is_paused returns the pause state from progress."""
+        test_progress.is_paused = True
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+
+        assert game.is_paused is True
+
+    def test_pause_returns_false_without_progress(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+    ):
+        """pause() returns False when no progress exists."""
+        game = GameState(db_session, test_user, test_puzzle, puz_data, progress=None)
+
+        result = game.pause()
+
+        assert result is False
+
+    def test_pause_sets_paused_state(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """pause() sets is_paused to True and returns True."""
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+
+        result = game.pause()
+
+        assert result is True
+        assert game.progress.is_paused is True
+        assert game.progress.pause_started_at is not None
+
+    def test_pause_accumulates_time(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """pause() accumulates elapsed time before pausing."""
+        import datetime as dt
+
+        # Set last_updated to 60 seconds ago
+        test_progress.last_updated = dt.datetime.utcnow() - dt.timedelta(seconds=60)
+        test_progress.accumulated_seconds = 100
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+        game.pause()
+
+        # Should have accumulated approximately 60 more seconds
+        assert game.progress.accumulated_seconds >= 159  # Allow for timing variance
+        assert game.progress.accumulated_seconds <= 162
+
+    def test_pause_returns_false_if_already_paused(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """pause() returns False when already paused."""
+        test_progress.is_paused = True
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+
+        result = game.pause()
+
+        assert result is False
+
+    def test_resume_returns_false_without_progress(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+    ):
+        """resume() returns False when no progress exists."""
+        game = GameState(db_session, test_user, test_puzzle, puz_data, progress=None)
+
+        result = game.resume()
+
+        assert result is False
+
+    def test_resume_clears_paused_state(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """resume() clears is_paused and returns True."""
+        import datetime as dt
+
+        test_progress.is_paused = True
+        test_progress.pause_started_at = dt.datetime.utcnow()
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+
+        result = game.resume()
+
+        assert result is True
+        assert game.progress.is_paused is False
+        assert game.progress.pause_started_at is None
+
+    def test_resume_returns_false_if_not_paused(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """resume() returns False when not paused."""
+        test_progress.is_paused = False
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+
+        result = game.resume()
+
+        assert result is False
+
+    def test_resume_updates_last_updated(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """resume() updates last_updated timestamp."""
+        import datetime as dt
+
+        old_time = dt.datetime.utcnow() - dt.timedelta(hours=1)
+        test_progress.is_paused = True
+        test_progress.last_updated = old_time
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+        game.resume()
+
+        # last_updated should be recent (within last second)
+        assert game.progress.last_updated > old_time
+
+
+class TestGameStateElapsedTime:
+    """Tests for get_elapsed_seconds() method."""
+
+    def test_elapsed_seconds_zero_without_progress(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+    ):
+        """get_elapsed_seconds() returns 0 when no progress exists."""
+        game = GameState(db_session, test_user, test_puzzle, puz_data, progress=None)
+
+        assert game.get_elapsed_seconds() == 0
+
+    def test_elapsed_seconds_when_paused(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """get_elapsed_seconds() returns accumulated time when paused (no active session)."""
+        test_progress.is_paused = True
+        test_progress.accumulated_seconds = 300
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+
+        assert game.get_elapsed_seconds() == 300
+
+    def test_elapsed_seconds_when_active(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """get_elapsed_seconds() returns accumulated + current session when active."""
+        import datetime as dt
+
+        # Set last_updated to 30 seconds ago
+        test_progress.is_paused = False
+        test_progress.accumulated_seconds = 100
+        test_progress.last_updated = dt.datetime.utcnow() - dt.timedelta(seconds=30)
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+
+        elapsed = game.get_elapsed_seconds()
+
+        # Should be approximately 130 seconds (100 + 30)
+        assert elapsed >= 129
+        assert elapsed <= 132
+
+    def test_elapsed_seconds_legacy_fallback(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """get_elapsed_seconds() falls back to wall-clock for legacy puzzles."""
+        import datetime as dt
+
+        # Legacy puzzle: accumulated_seconds=0 but has filled cells
+        test_progress.accumulated_seconds = 0
+        test_progress.started_at = dt.datetime.utcnow() - dt.timedelta(seconds=600)
+        # Fill some cells to indicate progress was made
+        fill = list(test_progress.current_fill)
+        fill[0] = "X"
+        test_progress.current_fill = "".join(fill)
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+
+        elapsed = game.get_elapsed_seconds()
+
+        # Should use wall-clock time (approximately 600 seconds)
+        assert elapsed >= 599
+        assert elapsed <= 602
+
+    def test_elapsed_seconds_no_legacy_for_new_puzzles(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """get_elapsed_seconds() doesn't fall back for new empty puzzles."""
+        import datetime as dt
+
+        # New puzzle: accumulated_seconds=0 and no filled cells
+        test_progress.accumulated_seconds = 0
+        test_progress.is_paused = False
+        test_progress.last_updated = dt.datetime.utcnow() - dt.timedelta(seconds=5)
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+
+        elapsed = game.get_elapsed_seconds()
+
+        # Should be approximately 5 seconds (current session only)
+        assert elapsed >= 4
+        assert elapsed <= 7
+
+
+class TestGameStatePauseSaveIntegration:
+    """Tests for pause state persistence through save()."""
+
+    def test_save_persists_pause_state(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """save() persists the paused state to database."""
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+
+        game.pause()
+        game.save()
+
+        # Reload from database
+        db_session.refresh(test_progress)
+
+        assert test_progress.is_paused is True
+        assert test_progress.pause_started_at is not None
+
+    def test_save_persists_accumulated_seconds(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """save() persists accumulated_seconds to database."""
+        import datetime as dt
+
+        test_progress.last_updated = dt.datetime.utcnow() - dt.timedelta(seconds=45)
+        test_progress.accumulated_seconds = 100
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+        game.save()
+
+        # Reload from database
+        db_session.refresh(test_progress)
+
+        # Should have accumulated approximately 45 more seconds
+        assert test_progress.accumulated_seconds >= 144
+        assert test_progress.accumulated_seconds <= 147
+
+    def test_save_does_not_accumulate_when_paused(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """save() does not accumulate time when paused."""
+        import datetime as dt
+
+        test_progress.is_paused = True
+        test_progress.last_updated = dt.datetime.utcnow() - dt.timedelta(seconds=3600)
+        test_progress.accumulated_seconds = 100
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+        game.save()
+
+        # Reload from database
+        db_session.refresh(test_progress)
+
+        # Should NOT have accumulated time while paused
+        assert test_progress.accumulated_seconds == 100
+
+    def test_new_puzzle_initializes_pause_fields(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+    ):
+        """save() initializes pause fields for new puzzles."""
+        game = GameState(db_session, test_user, test_puzzle, puz_data, progress=None)
+
+        game.save()
+
+        assert game.progress is not None
+        assert game.progress.is_paused is False
+        assert game.progress.accumulated_seconds == 0
+        assert game.progress.pause_started_at is None
+
+
+class TestGameStatePauseCompletion:
+    """Tests for completion timing with pause feature."""
+
+    def test_completion_uses_accumulated_time(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """Completion records accumulated time, not wall-clock time."""
+        import datetime as dt
+
+        # Set up: started 1 hour ago, but only 5 minutes of active time
+        test_progress.started_at = dt.datetime.utcnow() - dt.timedelta(hours=1)
+        test_progress.accumulated_seconds = 300  # 5 minutes
+        test_progress.last_updated = dt.datetime.utcnow()  # Just updated
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+        # Set to correct solution
+        game.current_fill = list(puz_data.solution)
+        game.save()
+
+        # Check completion time
+        stmt = select(CompletedPuzzle).where(
+            CompletedPuzzle.user_id == test_user.id,
+            CompletedPuzzle.puzzle_id == test_puzzle.id,
+        )
+        completed = db_session.exec(stmt).first()
+
+        assert completed is not None
+        # Should be approximately 300 seconds, NOT 3600
+        assert completed.completion_time_seconds >= 299
+        assert completed.completion_time_seconds <= 302
+
+    def test_completion_while_paused_uses_accumulated_time(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """Completion while paused uses accumulated time only."""
+        import datetime as dt
+
+        test_progress.is_paused = True
+        test_progress.accumulated_seconds = 180  # 3 minutes
+        test_progress.pause_started_at = dt.datetime.utcnow() - dt.timedelta(hours=2)
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+        # Set to correct solution
+        game.current_fill = list(puz_data.solution)
+        game.save()
+
+        # Check completion time
+        stmt = select(CompletedPuzzle).where(
+            CompletedPuzzle.user_id == test_user.id,
+            CompletedPuzzle.puzzle_id == test_puzzle.id,
+        )
+        completed = db_session.exec(stmt).first()
+
+        assert completed is not None
+        # Should be 180 seconds (accumulated), not including pause time
+        assert completed.completion_time_seconds == 180
+
+    def test_pause_resume_cycle_tracks_time_correctly(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        puz_data: puz.Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """Multiple pause/resume cycles track time correctly."""
+        import datetime as dt
+
+        # Start with 60 seconds accumulated
+        test_progress.accumulated_seconds = 60
+        test_progress.last_updated = dt.datetime.utcnow() - dt.timedelta(seconds=30)
+        db_session.commit()
+
+        game = GameState(db_session, test_user, test_puzzle, puz_data, test_progress)
+
+        # Pause (should accumulate ~30 more seconds)
+        game.pause()
+        game.save()
+
+        # Check accumulated time after pause (should be ~90)
+        assert game.progress.accumulated_seconds >= 89
+        assert game.progress.accumulated_seconds <= 92
+        assert game.progress.is_paused is True
+
+        # Resume
+        game.resume()
+        game.save()
+
+        assert game.progress.is_paused is False
+
+        # The accumulated seconds should stay the same until next action
+        # (resume updates last_updated but doesn't add time)
+        initial_accumulated = game.progress.accumulated_seconds
+
+        # Simulate some more active time by setting last_updated back
+        game.progress.last_updated = dt.datetime.utcnow() - dt.timedelta(seconds=20)
+        db_session.commit()
+
+        # Save again (should accumulate ~20 more seconds)
+        game.save()
+
+        assert game.progress.accumulated_seconds >= initial_accumulated + 19
+        assert game.progress.accumulated_seconds <= initial_accumulated + 22
+
+
+class TestAutoPauseActivePuzzles:
+    """Tests for auto_pause_active_puzzles function."""
+
+    def test_pauses_active_puzzle(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """auto_pause_active_puzzles pauses an active puzzle."""
+        test_progress.is_paused = False
+        test_progress.accumulated_seconds = 100
+        db_session.commit()
+
+        count = auto_pause_active_puzzles(db_session, test_user.id)
+
+        db_session.refresh(test_progress)
+        assert count == 1
+        assert test_progress.is_paused is True
+
+    def test_skips_already_paused_puzzle(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """auto_pause_active_puzzles skips already paused puzzles."""
+        test_progress.is_paused = True
+        test_progress.accumulated_seconds = 100
+        db_session.commit()
+
+        count = auto_pause_active_puzzles(db_session, test_user.id)
+
+        assert count == 0
+
+    def test_returns_zero_when_no_puzzles(
+        self,
+        db_session: Session,
+        test_user: User,
+    ):
+        """auto_pause_active_puzzles returns 0 when user has no puzzles."""
+        count = auto_pause_active_puzzles(db_session, test_user.id)
+
+        assert count == 0
+
+    def test_accumulates_time_before_pausing(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """auto_pause_active_puzzles accumulates time before pausing."""
+        test_progress.is_paused = False
+        test_progress.accumulated_seconds = 50
+        test_progress.last_updated = dt.datetime.utcnow() - dt.timedelta(seconds=30)
+        db_session.commit()
+
+        auto_pause_active_puzzles(db_session, test_user.id)
+
+        db_session.refresh(test_progress)
+        # Should have accumulated ~30 more seconds
+        assert test_progress.accumulated_seconds >= 79
+        assert test_progress.accumulated_seconds <= 82
+
+    def test_pauses_multiple_active_puzzles(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        test_progress: PlayerProgress,
+        puz_data: puz.Puzzle,
+        test_puz_path,
+    ):
+        """auto_pause_active_puzzles pauses all active puzzles for a user."""
+        # Create a second puzzle
+        puzzle2 = Puzzle(
+            filename="test_puzzle_2.puz",
+            title="Test Puzzle 2",
+            width=puz_data.width,
+            height=puz_data.height,
+            clue_count=10,
+        )
+        db_session.add(puzzle2)
+        db_session.commit()
+        db_session.refresh(puzzle2)
+
+        # Create progress for the second puzzle
+        empty_fill = "".join("." if c == "." else " " for c in puz_data.solution)
+        progress2 = PlayerProgress(
+            user_id=test_user.id,
+            puzzle_id=puzzle2.id,
+            current_fill=empty_fill,
+            solved_clues="[]",
+            is_paused=False,
+            accumulated_seconds=200,
+        )
+        db_session.add(progress2)
+
+        # Make sure first progress is active too
+        test_progress.is_paused = False
+        test_progress.accumulated_seconds = 100
+        db_session.commit()
+
+        count = auto_pause_active_puzzles(db_session, test_user.id)
+
+        db_session.refresh(test_progress)
+        db_session.refresh(progress2)
+
+        assert count == 2
+        assert test_progress.is_paused is True
+        assert progress2.is_paused is True
+
+    def test_only_pauses_users_own_puzzles(
+        self,
+        db_session: Session,
+        test_user: User,
+        test_puzzle: Puzzle,
+        test_progress: PlayerProgress,
+    ):
+        """auto_pause_active_puzzles only affects the specified user's puzzles."""
+        # Create another user with an active puzzle
+        other_user = User(
+            fingerprint="other-user-fingerprint",
+            display_name="OtherPlayer",
+        )
+        db_session.add(other_user)
+        db_session.commit()
+        db_session.refresh(other_user)
+
+        other_progress = PlayerProgress(
+            user_id=other_user.id,
+            puzzle_id=test_puzzle.id,
+            current_fill=test_progress.current_fill,
+            solved_clues="[]",
+            is_paused=False,
+            accumulated_seconds=300,
+        )
+        db_session.add(other_progress)
+        test_progress.is_paused = False
+        db_session.commit()
+
+        # Pause only test_user's puzzles
+        count = auto_pause_active_puzzles(db_session, test_user.id)
+
+        db_session.refresh(test_progress)
+        db_session.refresh(other_progress)
+
+        assert count == 1
+        assert test_progress.is_paused is True
+        assert other_progress.is_paused is False  # Other user's puzzle unchanged

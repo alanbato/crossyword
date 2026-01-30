@@ -1,5 +1,20 @@
 # {{ puzzle.title }}
 
+{% if is_paused %}
+TIMER PAUSED
+
+Your puzzle is saved and the timer is paused. The grid is hidden while paused to maintain fair timing.
+
+{% if date_str %}
+=> /puzzle/{{ date_str }}/resume Resume and Continue Playing
+{% else %}
+=> /puzzle/resume Resume and Continue Playing
+{% endif %}
+
+=> /archive Puzzle Archive
+=> / Home
+
+{% else %}
 {% if puzzle.author %}by {{ puzzle.author }}
 {% endif -%}
 {% if puzzle.source %}Source: {{ puzzle.source }}{% if puzzle.original_date %} ({{ puzzle.original_date.strftime('%B %d, %Y') }}){% endif %}
@@ -11,7 +26,7 @@ Crossyword Date: {{ crossyword_date }}
 ```
 
 {% if is_completed %}
-✓ COMPLETED
+COMPLETED
 
 => /leaderboard/{{ crossyword_date }} View Leaderboard
 {% else %}
@@ -19,8 +34,10 @@ Progress: {{ progress }}% filled
 
 {% if date_str %}
 => /puzzle/{{ date_str }}/check Check Solution
+=> /puzzle/{{ date_str }}/pause Pause Timer
 {% else %}
 => /puzzle/check Check Solution
+=> /puzzle/pause Pause Timer
 {% endif %}
 {% endif %}
 
@@ -46,3 +63,4 @@ Progress: {{ progress }}% filled
 
 => /archive Puzzle Archive
 => / Home
+{% endif %}

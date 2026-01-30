@@ -11,6 +11,7 @@ dependencies = [
     "alembic>=1.18.1",
     "nauyaca[reload]>=0.9.0",
     "puzpy>=0.3.0",
+    "structlog>=25.1.0",
     "xitzin[sqlmodel]>=0.3.0",
 ]
 

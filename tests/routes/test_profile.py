@@ -2,7 +2,7 @@
 
 from sqlmodel import Session, select
 
-from crossyword.models import User
+from crossyword.models import PlayerProgress, User
 
 
 class TestUserProfile:
@@ -213,3 +213,45 @@ class TestToggleColors:
 
         assert response.is_success
         assert "Disable Colors" in response.body
+
+
+class TestProfileAutoPause:
+    """Tests for auto-pause when navigating to profile."""
+
+    def test_profile_auto_pauses_active_puzzle(self, auth_client):
+        """Navigating to profile auto-pauses active puzzles."""
+        # First visit puzzle to create active progress
+        auth_client.get("/puzzle")
+
+        # Verify puzzle is not paused
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress is not None
+            assert progress.is_paused is False
+
+        # Navigate to profile
+        auth_client.get("/profile")
+
+        # Verify puzzle is now paused
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress.is_paused is True
+
+    def test_toggle_colors_auto_pauses(self, auth_client):
+        """Toggling colors auto-pauses active puzzles."""
+        # First visit puzzle to create active progress
+        auth_client.get("/puzzle")
+
+        # Toggle colors
+        auth_client.get("/profile/colors")
+
+        # Verify puzzle is now paused
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress.is_paused is True

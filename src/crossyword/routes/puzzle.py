@@ -7,7 +7,7 @@ from xitzin import Redirect, Request, Xitzin
 from xitzin.auth import get_identity, require_certificate
 
 from ..daily import get_or_assign_todays_puzzle, get_puzzle_for_date
-from ..game import GameState
+from ..game import GameState, auto_pause_active_puzzles
 from ..models import CompletedPuzzle, DailyPuzzle
 from ..rendering import apply_colors, render_clue_context, render_grid
 from ..users import get_or_create_user, requires_registration
@@ -90,6 +90,13 @@ def register_routes(app: Xitzin) -> None:
             )
         return None
 
+    def check_not_paused(game: GameState, date_str: str | None):
+        """Redirect to puzzle page if paused. Returns redirect or None."""
+        if game.is_paused:
+            redirect_path = f"/puzzle/{date_str}" if date_str else "/puzzle"
+            return Redirect(redirect_path)
+        return None
+
     def build_clue_list(game: GameState, direction: str) -> list[dict]:
         """Build clue list for template rendering."""
         clues = game.numbering.across if direction == "across" else game.numbering.down
@@ -127,6 +134,7 @@ def register_routes(app: Xitzin) -> None:
             across_clues=build_clue_list(game, "across"),
             down_clues=build_clue_list(game, "down"),
             is_completed=is_completed,
+            is_paused=game.is_paused,
             date_str=date_str,
             crossyword_date=leaderboard_date,
         )
@@ -186,6 +194,10 @@ def register_routes(app: Xitzin) -> None:
             game, error = get_game_or_error(session, request, target_date)
             if error:
                 return error
+
+            # Redirect to puzzle page if paused (shows paused state)
+            if redirect := check_not_paused(game, date_str):
+                return redirect
 
             clue_info = game.get_clue(direction, num)
             if not clue_info:
@@ -256,6 +268,10 @@ def register_routes(app: Xitzin) -> None:
             if error := check_not_completed(session, game, date_str):
                 return error
 
+            # Redirect to puzzle page if paused (shows paused state)
+            if redirect := check_not_paused(game, date_str):
+                return redirect
+
             success, message = game.submit_answer(direction, num, query)
 
             if not success:
@@ -296,6 +312,10 @@ def register_routes(app: Xitzin) -> None:
             if error := check_not_completed(session, game, date_str):
                 return error
 
+            # Redirect to puzzle page if paused (shows paused state)
+            if redirect := check_not_paused(game, date_str):
+                return redirect
+
             return format_check_result(game, date_str)
 
     @app.gemini("/puzzle/clear/{direction}/{num}", name="clear_answer")
@@ -322,6 +342,10 @@ def register_routes(app: Xitzin) -> None:
             if error := check_not_completed(session, game, date_str):
                 return error
 
+            # Redirect to puzzle page if paused (shows paused state)
+            if redirect := check_not_paused(game, date_str):
+                return redirect
+
             game.clear_answer(direction, num)
             game.save()
 
@@ -331,6 +355,53 @@ def register_routes(app: Xitzin) -> None:
                 direction=direction,
                 date_str=date_str,
             )
+
+    # --- Pause/Resume routes ---
+
+    @app.gemini("/puzzle/pause", name="pause_puzzle")
+    @app.gemini("/puzzle/{date_str}/pause", name="archived_pause_puzzle")
+    @require_certificate
+    def pause_puzzle(request: Request, date_str: str | None = None):
+        """Pause the puzzle timer."""
+        target_date, error = parse_date_or_error(date_str)
+        if error:
+            return error
+
+        with Session(request.app.state.engine) as session:
+            game, error = get_game_or_error(session, request, target_date)
+            if error:
+                return error
+
+            if error := check_not_completed(session, game, date_str):
+                return error
+
+            # Pause the timer (no-op if already paused)
+            game.pause()
+            game.save()
+
+            redirect_path = f"/puzzle/{date_str}" if date_str else "/puzzle"
+            return Redirect(redirect_path)
+
+    @app.gemini("/puzzle/resume", name="resume_puzzle")
+    @app.gemini("/puzzle/{date_str}/resume", name="archived_resume_puzzle")
+    @require_certificate
+    def resume_puzzle(request: Request, date_str: str | None = None):
+        """Resume the puzzle timer."""
+        target_date, error = parse_date_or_error(date_str)
+        if error:
+            return error
+
+        with Session(request.app.state.engine) as session:
+            game, error = get_game_or_error(session, request, target_date)
+            if error:
+                return error
+
+            # Resume the timer (no-op if not paused)
+            game.resume()
+            game.save()
+
+            redirect_path = f"/puzzle/{date_str}" if date_str else "/puzzle"
+            return Redirect(redirect_path)
 
     # --- Main puzzle route (registered last so specific routes match first) ---
 
@@ -370,6 +441,9 @@ def register_routes(app: Xitzin) -> None:
 
             if requires_registration(user):
                 return app.template("register_username.gmi")
+
+            # Auto-pause any active puzzles when navigating away
+            auto_pause_active_puzzles(session, user.id)
 
             # Get all daily puzzles up to today
             today = dt.date.today()

@@ -4,10 +4,13 @@ import datetime as dt
 
 from sqlmodel import Session, select
 from xitzin import Request, Xitzin
+from xitzin.auth import optional_certificate
 
 from ..daily import get_todays_puzzle
+from ..game import auto_pause_active_puzzles
 from ..models import CompletedPuzzle, DailyPuzzle, User
 from ..rendering import format_time
+from ..users import get_or_create_user
 
 
 def register_routes(app: Xitzin) -> None:
@@ -30,9 +33,16 @@ def register_routes(app: Xitzin) -> None:
         ]
 
     @app.gemini("/leaderboard")
+    @optional_certificate
     def today_leaderboard(request: Request):
         """Show today's puzzle leaderboard."""
         with Session(request.app.state.engine) as session:
+            # Auto-pause any active puzzles when navigating away
+            identity = request.state.identity
+            if identity:
+                user = get_or_create_user(session, identity.fingerprint)
+                auto_pause_active_puzzles(session, user.id)
+
             puzzle = get_todays_puzzle(session)
 
             if not puzzle:
@@ -51,6 +61,7 @@ def register_routes(app: Xitzin) -> None:
             )
 
     @app.gemini("/leaderboard/{date_str}")
+    @optional_certificate
     def historical_leaderboard(request: Request, date_str: str):
         """Show leaderboard for a specific date."""
         try:
@@ -63,6 +74,12 @@ def register_routes(app: Xitzin) -> None:
             )
 
         with Session(request.app.state.engine) as session:
+            # Auto-pause any active puzzles when navigating away
+            identity = request.state.identity
+            if identity:
+                user = get_or_create_user(session, identity.fingerprint)
+                auto_pause_active_puzzles(session, user.id)
+
             daily = session.exec(
                 select(DailyPuzzle).where(DailyPuzzle.date == target_date)
             ).first()

@@ -60,6 +60,11 @@ class PlayerProgress(SQLModel, table=True):
     started_at: dt.datetime = Field(default_factory=dt.datetime.utcnow)
     last_updated: dt.datetime = Field(default_factory=dt.datetime.utcnow)
 
+    # Pause feature fields
+    is_paused: bool = Field(default=False)
+    accumulated_seconds: int = Field(default=0)
+    pause_started_at: dt.datetime | None = Field(default=None)
+
     user: User = Relationship(back_populates="progress")
     puzzle: Puzzle = Relationship(back_populates="player_progress")
 

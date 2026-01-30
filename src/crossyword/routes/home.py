@@ -5,6 +5,7 @@ from xitzin import Request, Xitzin
 from xitzin.auth import optional_certificate
 
 from ..daily import get_or_assign_todays_puzzle
+from ..game import auto_pause_active_puzzles
 from ..rendering import apply_colors, render_logo
 from ..users import get_or_create_user
 
@@ -22,6 +23,9 @@ def register_routes(app: Xitzin) -> None:
             with Session(request.app.state.engine) as session:
                 user = get_or_create_user(session, identity.fingerprint)
                 puzzle = get_or_assign_todays_puzzle(session)
+
+                # Auto-pause any active puzzles when navigating away
+                auto_pause_active_puzzles(session, user.id)
 
                 logo = render_logo()
                 if user.use_colors:

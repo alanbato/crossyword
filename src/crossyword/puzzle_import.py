@@ -8,7 +8,10 @@ from pathlib import Path
 import puz
 from sqlmodel import Session, select
 
+from .logging import get_logger
 from .models import Puzzle
+
+logger = get_logger(__name__)
 
 # Mapping of filename prefixes to source names (for short prefix format)
 SOURCE_PREFIX_MAP = {
@@ -103,7 +106,7 @@ def import_puzzles(session: Session, puzzles_dir: Path) -> list[Puzzle]:
         try:
             p = puz.read(str(filepath))
         except Exception as e:
-            print(f"Failed to parse {filename}: {e}")
+            logger.warning("puzzle_parse_failed", filename=filename, error=str(e))
             continue
 
         numbering = p.clue_numbering()
@@ -125,6 +128,7 @@ def import_puzzles(session: Session, puzzles_dir: Path) -> list[Puzzle]:
 
         session.add(puzzle)
         imported.append(puzzle)
+        logger.debug("puzzle_imported", filename=filename, title=puzzle.title)
 
     if imported:
         session.commit()

@@ -5,7 +5,10 @@ import datetime as dt
 
 from sqlmodel import Session, select
 
+from .logging import get_logger
 from .models import DailyPuzzle, Puzzle
+
+logger = get_logger(__name__)
 
 
 def get_todays_puzzle(session: Session) -> Puzzle | None:
@@ -55,6 +58,7 @@ def assign_daily_puzzle(
             candidates = [oldest.puzzle]
 
     if not candidates:
+        logger.warning("no_puzzles_available", date=str(target_date))
         return None
 
     selected = random.choice(candidates)
@@ -62,6 +66,13 @@ def assign_daily_puzzle(
     daily = DailyPuzzle(date=target_date, puzzle_id=selected.id)
     session.add(daily)
     session.commit()
+
+    logger.info(
+        "daily_puzzle_assigned",
+        date=str(target_date),
+        puzzle_id=selected.id,
+        puzzle_title=selected.title,
+    )
 
     return selected
 

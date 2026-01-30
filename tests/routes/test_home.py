@@ -1,5 +1,9 @@
 """Integration tests for home routes."""
 
+from sqlmodel import Session
+
+from crossyword.models import PlayerProgress
+
 
 class TestHomePage:
     """Tests for / route."""
@@ -47,3 +51,30 @@ class TestHelpPage:
         # Help page should mention how to play
         body_lower = response.body.lower()
         assert "puzzle" in body_lower or "clue" in body_lower or "play" in body_lower
+
+
+class TestHomeAutoPause:
+    """Tests for auto-pause when navigating to home page."""
+
+    def test_home_auto_pauses_active_puzzle(self, auth_client):
+        """Navigating to home auto-pauses active puzzles."""
+        # First visit puzzle to create active progress
+        auth_client.get("/puzzle")
+
+        # Verify puzzle is not paused
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress is not None
+            assert progress.is_paused is False
+
+        # Navigate to home
+        auth_client.get("/")
+
+        # Verify puzzle is now paused
+        with Session(auth_client._app.state.engine) as session:
+            progress = session.exec(
+                __import__("sqlmodel").select(PlayerProgress)
+            ).first()
+            assert progress.is_paused is True
