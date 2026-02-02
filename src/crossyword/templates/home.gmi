@@ -26,7 +26,7 @@ Most Gemini clients can generate one for you.
 {% if leaderboard %}
 {% for entry in leaderboard %}
 {% if entry.username %}
-{{ loop.index }}. => /profile/{{ entry.username }} {{ entry.name }} - {{ entry.time }}
+=> /profile/{{ entry.username }} {{ loop.index }}. {{ entry.name }} - {{ entry.time }}
 {% else %}
 {{ loop.index }}. {{ entry.name }} - {{ entry.time }}
 {% endif %}
