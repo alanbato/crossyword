@@ -36,9 +36,11 @@ Progress: {{ progress }}% filled
 {% if date_str %}
 => /puzzle/{{ date_str }}/check Check Solution
 => /puzzle/{{ date_str }}/pause Pause Timer
+=> /leaderboard/{{ crossyword_date }} View Leaderboard
 {% else %}
 => /puzzle/check Check Solution
 => /puzzle/pause Pause Timer
+=> /leaderboard View Leaderboard
 {% endif %}
 {% endif %}
 

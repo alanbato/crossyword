@@ -2,6 +2,19 @@
 
 Puzzle: {{ puzzle.title }}
 
+{% if prev_date %}
+=> /leaderboard/{{ prev_date }} ← {{ prev_date }}
+{% endif %}
+{% if next_date %}
+=> /leaderboard/{{ next_date }} {{ next_date }} →
+{% endif %}
+{% if is_today %}
+=> /leaderboard/archive Browse All Leaderboards
+{% else %}
+=> /leaderboard Today's Leaderboard
+=> /leaderboard/archive Browse All Leaderboards
+{% endif %}
+
 {% if entries %}
 {{ entries | length }} completion(s)
 

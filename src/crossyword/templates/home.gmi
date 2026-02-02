@@ -47,7 +47,8 @@ No completions yet. Be the first to finish today's puzzle!
 
 ## Recent Updates
 
-* Pause/Resume - Leave the puzzle anytime, your timer pauses automatically
+* Leaderboard Navigation - Browse past leaderboards with prev/next links and archive
+* Pause/Resume - Need a break? Just press Pause to stop your timer
 * Colored Grid - Enable ANSI colors in your profile for a vibrant display
 * Puzzle Archive - Play previous puzzles and compete on historical leaderboards
 

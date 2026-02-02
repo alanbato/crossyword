@@ -1,0 +1,14 @@
+# Leaderboard Archive
+
+Browse past leaderboards:
+
+{% if entries %}
+{% for entry in entries %}
+=> /leaderboard/{{ entry.date }} {{ entry.date }} - {{ entry.title }} ({{ entry.completions }} completions)
+{% endfor %}
+{% else %}
+No leaderboards available yet.
+{% endif %}
+
+=> /leaderboard Today's Leaderboard
+=> / Home
